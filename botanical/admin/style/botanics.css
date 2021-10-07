@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css?family=Lora');
+*{
+	margin:0px;
+	padding:0px;
+}
+ #header{
+	background:#000000;
+	height:40px;   
+}
+
+/*** Superfish SKIN ***/
+.menu {
+	float:			left;
+	margin-bottom:	1em;
+	padding:0px;
+}
+.menu a {
+	padding: 		.75em 1em;
+	text-decoration:none;
+	color:#ffffff;
+}
+.menu a { 
+	color:#ffffff;
+}
+.menu li {
+	background:#000000;
+	display:inline;
+}
+#header p{
+	text-align:right;
+	color:white;
+}
+ 

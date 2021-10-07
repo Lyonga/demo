@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css?family=Lora');
+
+header aside nav section footer article{
+	display:block;
+	
+}
+
+#big_wrapper{
+    border:5px solid rgb(219, 15, 42);
+	padding-left:20px;
+	padding-right:20px;
+	border-radius:10px;
+}
+
+nav {
+	width:100%;
+	height:60px;
+	background-color:brown;
+}
+
+nav ul {
+	float:right;
+}
+
+nav ul  {
+	list-style:none;
+	padding:5px;
+	display:inline;
+	text-align:center;
+	float:right;
+	position: relative;
+}
+
+nav ul li a {
+	color:black;
+	font-size:20px;
+	font-family:arial;
+	padding:12px 8px;
+	display:block;
+	text-decoration:none;
+}
+
+nav ul li:hover {
+	display:block;
+}
+
+nav ul li ul {
+	color:black;
+	display:none;
+	position: absolute;
+	background-color: aquamarine;
+	padding:10px 12px;
+}
+
+nav ul li ul li {
+	width:180px;
+	border-radius:0px 0px 4px 4px;
+}
+nav ul li ul li a {
+	padding:8px 10px;
+}
+
+nav ul li ul li a:hover {
+	background-color:gray;
+
+}

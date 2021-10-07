@@ -1,0 +1,153 @@
+@import url('https://fonts.googleapis.com/css?family=Lora');
+*{
+	margin:0px;
+	padding:0px;
+}
+header aside nav section footer article{
+	display:block;
+	
+}
+
+#big_wrapper {
+	padding-left:20px;
+	padding-right:20px;
+    border-radius:10px;
+}
+
+nav {
+	width:100%;
+	height:60px;
+    background-color:brown;
+    
+}
+
+nav ul {
+	float:right;
+}
+
+nav ul li {
+	list-style:none;
+	padding:5px;
+	display:inline;
+	text-align:center;
+	float:left;
+	position: relative;
+}
+
+nav ul li a {
+	color:black;
+	font-size:20px;
+	font-family:arial;
+	padding:12px 8px;
+	display:block;
+	text-decoration:none;
+}
+
+nav ul li:hover ul {
+	display:block;
+}
+
+nav ul li ul {
+	color:black;
+	display:none;
+	position: absolute;
+	background-color: bisque;
+	padding:10px 12px;
+}
+
+nav ul li ul li {
+	width:180px;
+	border-radius:0px 0px 4px 4px;
+}
+nav ul li ul li a {
+	padding:8px 10px;
+}
+
+nav ul li ul li a:hover {
+	background-color:gray;
+
+}
+
+#first_div {
+   float:left;
+   width:35%;
+   height:200px;
+}
+
+#second_div {
+    float:left;
+    width:34%;
+   height:200px;
+
+ }
+
+ #third_div {
+    float:right;
+    width:31%;
+   height:200px;
+
+ }
+
+
+ #article_header {
+     font-size:28px;
+     background-color: rgb(95, 78, 55);
+     text-align:center;
+     border-radius:12px;
+ }
+
+ article{
+     font-size:20px;
+     text-align:justify;
+     text-indent:50px;
+ }
+ 
+
+ #mainsection {
+    width:70%;
+    float:left;
+    border:3px solid brown;
+    border-radius:12px;
+    padding:15px 10px;
+ }
+
+ #sidenote {
+     width:23%;
+     float:left;
+     padding-bottom:25px;
+     border-radius:12px;
+     padding:15px 10px;
+    
+ }
+
+ #article_footer {
+     text-align:right;
+ }
+
+
+
+ #navigation{
+	background:#000000;
+	height:40px;   
+}
+
+/*** Superfish SKIN ***/
+.menu {
+	float:			left;
+	margin-bottom:	1em;
+	padding:0px;
+}
+.menu a {
+	padding: 		.75em 1em;
+	text-decoration:none;
+	color:#ffffff;
+}
+.menu a { 
+	color:#ffffff;
+}
+.menu li {
+	background:#000000;
+	display:inline;
+}
+
+ 

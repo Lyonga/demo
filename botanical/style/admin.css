@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css?family=Lora');
+
+*{
+	margin:0px;
+	padding:0px;
+}
+
+.side {
+	width:30%;
+	background-color:rgb(146, 155, 172);
+	padding-left:80px;
+	height:400px;
+	float:left;
+	list-style: none;
+	padding-top:50px;
+}
+nav ul li {
+	list-style:none;
+
+}
+
+
+
+
+.top {
+	width:50%;
+	background-color: burlywood;
+	padding-left:60px;
+	height:400px;
+	float:left;
+	padding-top:50px;
+	font-size:28px bold Tahoma;
+}
+
+section ul li {
+	display:inline;
+	padding-left:30px;
+}
