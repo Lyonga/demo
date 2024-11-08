@@ -124,3 +124,22 @@ Resiliency of EC2 instances with redundancy, monitoring, auto-scaling, and backu
 Seamless migration from VMC to EC2 with minimal disruptions and adherence to AWS best practices.
 Improved performance, security, and governance post-migration through AWS native tools and automation.
 This holistic review and set of recommendations align with industry standards, providing both immediate solutions and long-term strategies for maintaining operational excellence on AWS EC2.
+
+
+  MyLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyName
+        SecurityGroupIds:
+          - !Ref EFSSecurityGroup
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            yum install -y amazon-efs-utils
+            mkdir -p /mnt/efs
+            mount -t efs -o tls ${EFSFileSystemId}:/ /mnt/efs
+            # Add the mount to /etc/fstab to make it persistent across reboots
+            echo "${EFSFileSystemId}:/ /mnt/efs efs _netdev,tls 0 0" >> /etc/fstab
+
