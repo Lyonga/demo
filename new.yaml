@@ -1,0 +1,349 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "EC2 Resiliency Template for Standalone (generic) and Cluster (auto-scaling)."
+
+Parameters:
+  DeploymentType:
+    Description: "Specify 'generic' for standalone EC2 instance or 'cluster' for ASG with ELB."
+    Type: String
+    AllowedValues:
+      - generic
+      - cluster
+    ConstraintDescription: "Must be 'generic' or 'cluster'."
+
+Conditions:
+  IsGeneric: !Equals [!Ref DeploymentType, "generic"]
+  IsCluster: !Equals [!Ref DeploymentType, "cluster"]
+
+Resources:
+  # Standalone EC2 Instance for Generic Deployment
+  StandaloneEC2Instance:
+    Type: "AWS::EC2::Instance"
+    Condition: IsGeneric
+    Properties:
+      InstanceType: "t2.micro"
+      ImageId: "ami-0abcdef1234567890"  # Replace with your AMI ID
+      KeyName: "my-key-pair"  # Replace with your key pair
+      Tags:
+        - Key: "Name"
+          Value: "StandaloneInstance"
+
+  # CloudWatch Alarm for Standalone EC2
+  StandaloneCloudWatchAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Condition: IsGeneric
+    Properties:
+      AlarmName: "StandaloneInstanceStatusCheckFailed"
+      MetricName: "StatusCheckFailed_Instance"
+      Namespace: "AWS/EC2"
+      Statistic: "Minimum"
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: "GreaterThanOrEqualToThreshold"
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
+      Dimensions:
+        - Name: "InstanceId"
+          Value: !Ref StandaloneEC2Instance
+
+  # Auto Scaling Group and Launch Configuration for Cluster Deployment
+  ClusterLaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Condition: IsCluster
+    Properties:
+      LaunchTemplateName: "ClusterLaunchTemplate"
+      LaunchTemplateData:
+        InstanceType: "t2.micro"
+        ImageId: "ami-0abcdef1234567890"  # Replace with your AMI ID
+        KeyName: "my-key-pair"  # Replace with your key pair
+
+  ClusterAutoScalingGroup:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Condition: IsCluster
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ClusterLaunchTemplate
+        Version: !GetAtt ClusterLaunchTemplate.LatestVersionNumber
+      MinSize: 2
+      MaxSize: 5
+      DesiredCapacity: 2
+      VPCZoneIdentifier:
+        - "subnet-0abcd1234efgh5678"  # Replace with your subnet IDs
+        - "subnet-1abcd1234efgh5678"
+
+  ClusterElasticLoadBalancer:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Condition: IsCluster
+    Properties:
+      Name: "ClusterLoadBalancer"
+      Scheme: "internet-facing"
+      Subnets:
+        - "subnet-0abcd1234efgh5678" 
+
+
+
+
+
+
+
+############
+schemaVersion: "2.2"
+description: "Install CloudWatch Agent, CrowdStrike Falcon Agent, and Rapid7 Agent"
+mainSteps:
+  - action: "aws:runShellScript"
+    name: "InstallCloudWatchAgent"
+    inputs:
+      runCommand:
+        - "curl https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm -o amazon-cloudwatch-agent.rpm"
+        - "sudo rpm -U ./amazon-cloudwatch-agent.rpm"
+        - "sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-config-wizard"
+        - "sudo systemctl start amazon-cloudwatch-agent"
+        - "sudo systemctl enable amazon-cloudwatch-agent"
+  - action: "aws:runShellScript"
+    name: "InstallCrowdStrikeAgent"
+    inputs:
+      runCommand:
+        - "curl -O https://<crowdstrike-url>/falcon-sensor.rpm"
+        - "sudo rpm -i falcon-sensor.rpm"
+        - "sudo /opt/CrowdStrike/falconctl -s --cid=<Your-CID>"
+        - "sudo systemctl start falcon-sensor"
+        - "sudo systemctl enable falcon-sensor"
+  - action: "aws:runShellScript"
+    name: "InstallRapid7Agent"
+    inputs:
+      runCommand:
+        - "curl -O https://download2.rapid7.com/download/InsightAgent/InsightAgent-Linux64.rpm"
+        - "sudo rpm -i InsightAgent-Linux64.rpm"
+        - "sudo /opt/rapid7/ir_agent/ir_agent.sh deploy --key <YOUR-RAPID7-KEY>"
+
+
+
+
+        schemaVersion: "2.2"
+        description: "Conditional installation of agents based on DeploymentType"
+        parameters:
+          DeploymentType:
+            type: "String"
+            description: "Specify deployment type: 'generic' for standalone or 'cluster' for ASG."
+            allowedValues:
+              - "generic"
+              - "cluster"
+
+        mainSteps:
+          - action: "aws:runShellScript"
+            name: "InstallCloudWatchAgent"
+            inputs:
+              runCommand:
+                - "curl https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm -o amazon-cloudwatch-agent.rpm"
+                - "sudo rpm -U ./amazon-cloudwatch-agent.rpm"
+                - "sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-config-wizard"
+                - "sudo systemctl start amazon-cloudwatch-agent"
+                - "sudo systemctl enable amazon-cloudwatch-agent"
+          - action: "aws:runShellScript"
+            name: "InstallCrowdStrikeAgent"
+            inputs:
+              runCommand:
+                - "curl -O https://<crowdstrike-url>/falcon-sensor.rpm"
+                - "sudo rpm -i falcon-sensor.rpm"
+                - "sudo /opt/CrowdStrike/falconctl -s --cid=<Your-CID>"
+                - "sudo systemctl start falcon-sensor"
+                - "sudo systemctl enable falcon-sensor"
+            precondition:
+              StringEquals: ["{{ DeploymentType }}", "generic"]
+          - action: "aws:runShellScript"
+            name: "InstallRapid7Agent"
+            inputs:
+              runCommand:
+                - "curl -O https://download2.rapid7.com/download/InsightAgent/InsightAgent-Linux64.rpm"
+                - "sudo rpm -i InsightAgent-Linux64.rpm"
+                - "sudo /opt/rapid7/ir_agent/ir_agent.sh deploy --key <YOUR-RAPID7-KEY>"
+            precondition:
+              StringEquals: ["{{ DeploymentType }}", "generic"]
+
+#########
+
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Standalone EC2 instance with agent installations via Systems Manager."
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    Description: "EC2 instance type"
+
+Resources:
+  StandaloneInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: "ami-0abcdef1234567890"  # Replace with your AMI ID
+      KeyName: "my-key-pair"  # Replace with your key pair
+      IamInstanceProfile: !Ref InstanceProfile
+      SecurityGroupIds:
+        - "sg-0abcd1234efgh5678"  # Replace with your Security Group ID
+      SubnetId: "subnet-0abcd1234efgh5678"  # Replace with your Subnet ID
+      Tags:
+        - Key: Name
+          Value: "StandaloneInstance"
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  AgentInstallSSMDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Name: "InstallAgents"
+      Content:
+        schemaVersion: "2.2"
+        description: "Install CloudWatch, CrowdStrike Falcon, and Rapid7 agents."
+        mainSteps:
+          - action: "aws:runShellScript"
+            name: "InstallCloudWatchAgent"
+            inputs:
+              runCommand:
+                - "curl -O https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm"
+                - "rpm -U ./amazon-cloudwatch-agent.rpm"
+                - "systemctl enable amazon-cloudwatch-agent"
+                - "systemctl start amazon-cloudwatch-agent"
+          - action: "aws:runShellScript"
+            name: "InstallCrowdStrikeFalcon"
+            inputs:
+              runCommand:
+                - "curl -O https://<crowdstrike-url>/falcon-sensor.rpm"
+                - "rpm -i falcon-sensor.rpm"
+                - "/opt/CrowdStrike/falconctl -s --cid=<Your-CID>"
+                - "systemctl enable falcon-sensor"
+                - "systemctl start falcon-sensor"
+          - action: "aws:runShellScript"
+            name: "InstallRapid7Agent"
+            inputs:
+              runCommand:
+                - "curl -O https://download2.rapid7.com/download/InsightAgent/InsightAgent-Linux64.rpm"
+                - "rpm -i InsightAgent-Linux64.rpm"
+                - "/opt/rapid7/ir_agent/ir_agent.sh deploy --key <YOUR-RAPID7-KEY>"
+
+  SSMCommandAssociation:
+    Type: AWS::SSM::Association
+    Properties:
+      Name: !Ref AgentInstallSSMDocument
+      Targets:
+        - Key: InstanceIds
+          Values:
+            - !Ref StandaloneInstance
+
+
+
+#################
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Auto Scaling Group with agent installations via Systems Manager."
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    Description: "EC2 instance type"
+
+Resources:
+  ClusterLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: "ClusterLaunchTemplate"
+      LaunchTemplateData:
+        InstanceType: !Ref InstanceType
+        ImageId: "ami-0abcdef1234567890"  # Replace with your AMI ID
+        KeyName: "my-key-pair"  # Replace with your key pair
+        IamInstanceProfile:
+          Arn: !GetAtt InstanceProfile.Arn
+
+  ClusterAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ClusterLaunchTemplate
+        Version: !GetAtt ClusterLaunchTemplate.LatestVersionNumber
+      MinSize: 2
+      MaxSize: 5
+      DesiredCapacity: 2
+      VPCZoneIdentifier:
+        - "subnet-0abcd1234efgh5678"  # Replace with your Subnet IDs
+        - "subnet-1abcd1234efgh5678"
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  AgentInstallSSMDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Name: "InstallAgents"
+      Content:
+        schemaVersion: "2.2"
+        description: "Install CloudWatch, CrowdStrike Falcon, and Rapid7 agents."
+        mainSteps:
+          - action: "aws:runShellScript"
+            name: "InstallCloudWatchAgent"
+            inputs:
+              runCommand:
+                - "curl -O https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm"
+                - "rpm -U ./amazon-cloudwatch-agent.rpm"
+                - "systemctl enable amazon-cloudwatch-agent"
+                - "systemctl start amazon-cloudwatch-agent"
+          - action: "aws:runShellScript"
+            name: "InstallCrowdStrikeFalcon"
+            inputs:
+              runCommand:
+                - "curl -O https://<crowdstrike-url>/falcon-sensor.rpm"
+                - "rpm -i falcon-sensor.rpm"
+                - "/opt/CrowdStrike/falconctl -s --cid=<Your-CID>"
+                - "systemctl enable falcon-sensor"
+                - "systemctl start falcon-sensor"
+          - action: "aws:runShellScript"
+            name: "InstallRapid7Agent"
+            inputs:
+              runCommand:
+                - "curl -O https://download2.rapid7.com/download/InsightAgent/InsightAgent-Linux64.rpm"
+                - "rpm -i InsightAgent-Linux64.rpm"
+                - "/opt/rapid7/ir_agent/ir_agent.sh deploy --key <YOUR-RAPID7-KEY>"
+
+  SSMCommandAssociation:
+    Type: AWS::SSM::Association
+    Properties:
+      Name: !Ref AgentInstallSSMDocument
+      Targets:
+        - Key: AutoScalingGroupName
+          Values:
+            - !Ref ClusterAutoScalingGroup
