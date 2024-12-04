@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Template to set up CloudWatch Agent in an Auto Scaling Group via a Launch Template.
+
+Parameters:
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3.micro
+
+  InstanceAMI:
+    Description: AMI ID for the EC2 instances
+    Type: AWS::EC2::Image::Id
+    Default: ami-0123456789abcdef0  # Update with your AMI ID
+
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+    Type: AWS::EC2::KeyPair::KeyName
+
+  IAMRole:
+    Description: Name of an existing IAM role for CloudWatch Agent
+    Type: String
+
+Resources:
+  CloudWatchLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: CloudWatchAgentLaunchTemplate
+      LaunchTemplateData:
+        InstanceType: !Ref InstanceType
+        ImageId: !Ref InstanceAMI
+        KeyName: !Ref KeyName
+        IamInstanceProfile:
+          Name: !Ref IAMRole
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            # Install CloudWatch Agent
+            yum install -y https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+            
+            # Create CloudWatch Agent configuration file
+            cat <<EOT > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+            {
+              "metrics": {
+                "append_dimensions": {
+                  "AutoScalingGroupName": "${!aws:AutoScalingGroupName}",
+                  "ImageId": "${!aws:ImageId}",
+                  "InstanceId": "${!aws:InstanceId}",
+                  "InstanceType": "${!aws:InstanceType}"
+                },
+                "metrics_collected": {
+                  "mem": {
+                    "measurement": ["mem_used_percent"]
+                  },
+                  "disk": {
+                    "measurement": ["used_percent"],
+                    "resources": ["/"]
+                  }
+                }
+              }
+            }
+            EOT
+
+            # Start CloudWatch Agent
+            /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref CloudWatchLaunchTemplate
+        Version: "1"
+      MinSize: "1"
+      MaxSize: "5"
+      DesiredCapacity: "1"
+      VPCZoneIdentifier:
+        - subnet-0123456789abcdef0  # Replace with your subnet IDs
