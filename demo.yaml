@@ -1,1 +1,104 @@
-{"Version":"2012-10-17","Statement":[{"Sid":"DenyEC2CreationSCP1","Effect":"Deny","Action":["ec2:RunInstances"],"Resource":["arn:aws:ec2:*:*:instance/*","arn:aws:ec2:*:*:volume/*"],"Condition":{"Null":{"aws:RequestTag/Project":"true"}}},{"Sid":"DenyEC2CreationSCP2","Effect":"Deny","Action":["ec2:RunInstances"],"Resource":["arn:aws:ec2:*:*:instance/*","arn:aws:ec2:*:*:volume/*"],"Condition":{"Null":{"aws:RequestTag/Environment":"true"}}},{"Sid":"DenyEC2CreationSCP3","Effect":"Deny","Action":["ec2:RunInstances"],"Resource":["arn:aws:ec2:*:*:instance/*","arn:aws:ec2:*:*:volume/*"],"Condition":{"Null":{"aws:RequestTag/Service-Name":"true"}}}]}
+Reducing costs in a multi-account AWS environment requires a strategic approach that encompasses both global best practices and service-specific optimizations. Below are comprehensive strategies to help you achieve significant cost savings, with a focus on QuickSight, S3, EC2, RDS, VPC, Compute Savings Plans, Glue, Data Transfer, and DMS.
+
+Global Cost-Saving Strategies
+1. Centralized Management with AWS Organizations
+Consolidated Billing: Use AWS Organizations to consolidate billing across all accounts. This allows you to leverage volume discounts and share Reserved Instances and Savings Plans across accounts.
+Service Control Policies (SCPs): Implement SCPs to enforce cost-saving policies, such as restricting the launch of expensive resources or regions.
+2. Implement Cost Monitoring and Alerts
+AWS Cost Explorer: Regularly review cost and usage reports to identify trends and anomalies.
+AWS Budgets: Set up budgets and alerts for each account or service to prevent unexpected charges.
+Cost Allocation Tags: Use standardized tagging across accounts to track and allocate costs effectively.
+3. Rightsizing and Resource Optimization
+Resource Utilization: Use AWS Trusted Advisor and Compute Optimizer to identify underutilized or idle resources.
+Automated Scheduling: Implement start/stop schedules for non-production environments during off-hours.
+Infrastructure as Code (IaC): Use tools like AWS CloudFormation or Terraform to manage resources efficiently and avoid configuration drift.
+4. Optimize Data Transfer Costs
+Reduce Cross-Region Traffic: Keep interdependent resources within the same region to minimize data transfer fees.
+Use VPC Endpoints: Leverage AWS PrivateLink and VPC endpoints to reduce data transfer costs between services.
+Content Delivery Networks (CDNs): Utilize Amazon CloudFront for content delivery to lower data transfer out costs.
+Service-Specific Cost-Saving Strategies
+Amazon QuickSight
+User Management
+Session Capacity Pricing: If you have many infrequent users, consider the session-based pricing model instead of per-user pricing.
+Remove Unused Users: Regularly audit and delete inactive user accounts to avoid unnecessary subscription fees.
+Edition Selection
+Standard vs. Enterprise: Choose the Standard edition if advanced features like ML insights and encryption at rest are not required.
+Resource Optimization
+Delete Unused Assets: Remove unused analyses, dashboards, and datasets to free up space and reduce costs.
+Amazon S3
+Storage Class Optimization
+Lifecycle Policies: Implement lifecycle policies to transition data to cheaper storage classes like S3 Glacier or Glacier Deep Archive based on access patterns.
+Intelligent-Tiering: Use S3 Intelligent-Tiering for automatic cost savings on data with unknown or changing access patterns.
+Data Management
+Delete Unnecessary Data: Regularly clean up old versions, incomplete multipart uploads, and unnecessary backups.
+Compression and Deduplication: Compress data and eliminate duplicates to reduce storage space.
+Access and Retrieval
+Optimize Data Retrieval: Be cautious with frequent retrievals from infrequent access tiers to avoid additional charges.
+Amazon EC2
+Instance Selection
+Rightsizing: Use AWS Compute Optimizer to select the most cost-effective instance types based on performance metrics.
+Latest Generation Instances: Migrate to newer instance families that offer better performance at lower costs.
+Pricing Models
+Savings Plans and Reserved Instances: Commit to long-term usage for substantial discounts.
+Spot Instances: Use Spot Instances for fault-tolerant and flexible applications to take advantage of significant cost reductions.
+Auto Scaling
+Dynamic Scaling: Configure Auto Scaling groups to automatically adjust capacity based on demand.
+Scheduled Scaling: Implement scaling schedules to align with predictable workload patterns.
+Amazon RDS
+Instance Optimization
+Rightsizing: Adjust instance sizes based on CPU, memory, and storage utilization metrics.
+Engine Version Updates: Upgrade to the latest database engines for performance improvements and cost efficiencies.
+Pricing Models
+Reserved Instances: Purchase Reserved Instances for steady-state databases to save up to 69%.
+On-Demand vs. Provisioned IOPS: Evaluate the necessity of Provisioned IOPS and consider General Purpose (SSD) storage if appropriate.
+Operational Efficiency
+Stop/Start Feature: Use the stop/start feature for non-production databases to avoid charges during idle times.
+Backup Management: Limit the retention period of automated backups and delete obsolete snapshots.
+Amazon VPC
+Network Design
+VPC Endpoints: Use VPC endpoints to privately connect your VPC to supported AWS services, reducing NAT Gateway data processing costs.
+Consolidate NAT Gateways: Strategically place NAT Gateways to serve multiple subnets and reduce the number of gateways.
+Data Transfer
+Intra-Region Traffic: Keep communication within the same Availability Zone to minimize data transfer charges.
+VPC Peering vs. Transit Gateway: Evaluate the cost benefits of VPC peering connections versus AWS Transit Gateway for your network architecture.
+Compute Savings Plans
+Commitment Strategies
+Analyze Usage Patterns: Use AWS Cost Explorer to understand your compute usage before committing.
+Flexible Plans: Opt for Compute Savings Plans over EC2 Instance Savings Plans for flexibility across instance families, sizes, and regions.
+Monitoring
+Regular Reviews: Continuously monitor your usage to ensure you are maximizing the benefits of your Savings Plans.
+Adjust Commitments: Be prepared to adjust your commitments if your usage patterns change significantly.
+AWS Glue
+Job Optimization
+Efficient Coding Practices: Write optimized code to reduce job execution time and resource consumption.
+Dynamic Frame Filtering: Process only necessary data by filtering datasets early in the ETL process.
+Resource Allocation
+Adjust DPUs: Allocate appropriate Data Processing Units (DPUs) based on job requirements to avoid over-provisioning.
+Job Bookmarks: Use job bookmarks to process only new or updated data, reducing unnecessary processing.
+Version Updates
+Latest Glue Versions: Use the latest versions of AWS Glue for performance improvements and cost efficiencies.
+Data Transfer
+Optimization Techniques
+Data Localization: Keep data processing and storage in the same region to minimize transfer costs.
+Efficient Data Formats: Use compressed and efficient data formats like Parquet or ORC to reduce data size.
+Architectural Decisions
+Edge Services: Leverage edge services like AWS Lambda@Edge and Amazon CloudFront to serve content closer to users.
+Batch Transfers: Schedule data transfers during off-peak hours if possible, when bandwidth may be cheaper or more available.
+AWS Database Migration Service (DMS)
+Resource Management
+Right-Sized Instances: Choose the appropriate replication instance size based on workload requirements.
+Stop Unused Tasks: Stop or delete migration tasks that are no longer needed to avoid ongoing charges.
+Efficiency Enhancements
+Task Scheduling: Schedule migration tasks during off-peak hours to optimize instance usage.
+Data Filtering: Migrate only necessary data by using filters, reducing the amount of data processed and transferred.
+Additional Multi-Account Strategies
+Cross-Account Resource Sharing
+Resource Access Manager (RAM): Use AWS RAM to share resources like subnets, transit gateways, and license configurations across accounts to reduce duplication and costs.
+Centralized Logging and Monitoring
+AWS CloudTrail and CloudWatch: Centralize logs to a single account to simplify monitoring and reduce storage costs.
+Bulk Purchasing and Licensing
+Enterprise Agreements: Negotiate enterprise agreements with AWS for potential discounts based on committed spend levels.
+Conclusion
+Implementing these strategies requires coordination across your organization and a thorough understanding of your workloads and usage patterns. Regularly reviewing your AWS environment and staying informed about new AWS features and services will further enhance your ability to optimize costs. Remember that cost optimization is an ongoing process, and periodic audits can uncover new opportunities for savings.
+
+By focusing on both global best practices and service-specific optimizations, you can achieve substantial cost savings in your multi-account AWS setup while maintaining or even enhancing performance and scalability.
