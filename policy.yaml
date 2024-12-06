@@ -1,0 +1,108 @@
+{
+  "Version": "2012-10-17",
+  "Id": "KMSKeyPolicy",
+  "Statement": [
+    {
+      "Sid": "DenyPublicAccess",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "kms:*",
+      "Resource": "*",
+      "Condition": {
+        "Bool": {
+          "aws:SecureTransport": "false"
+        }
+      }
+    },
+    {
+      "Sid": "AllowRootAccountAccess",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::111122223333:root"
+      },
+      "Action": "kms:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "GrantSpecificIAMRoleAccess",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::111122223333:role/ExampleApplicationRole",
+          "arn:aws:iam::111122223333:user/SpecificUser"
+        ]
+      },
+      "Action": [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:DescribeKey"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "kms:ViaService": "s3.us-east-1.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "RestrictAccessToSpecificIPs",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "kms:*",
+      "Resource": "*",
+      "Condition": {
+        "NotIpAddressIfExists": {
+          "aws:SourceIp": [
+            "203.0.113.0/24",
+            "192.168.1.0/24"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "AllowEncryptionForSpecificContext",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::111122223333:role/DataEncryptionRole"
+      },
+      "Action": [
+        "kms:Encrypt",
+        "kms:Decrypt"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "kms:EncryptionContext:Environment": "production"
+        }
+      }
+    },
+    {
+      "Sid": "EnableKeyAdministrators",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::111122223333:role/KeyAdminRole"
+        ]
+      },
+      "Action": [
+        "kms:Create*",
+        "kms:Describe*",
+        "kms:Enable*",
+        "kms:List*",
+        "kms:Put*",
+        "kms:Update*",
+        "kms:Revoke*",
+        "kms:Disable*",
+        "kms:Get*",
+        "kms:Delete*",
+        "kms:TagResource",
+        "kms:UntagResource",
+        "kms:ScheduleKeyDeletion",
+        "kms:CancelKeyDeletion"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
