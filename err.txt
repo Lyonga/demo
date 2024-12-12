@@ -1,1 +1,8 @@
 Resource handler returned message: "Encountered a permissions error performing a tagging operation, please add required tag permissions. See https://repost.aws/knowledge-center/cloudformation-tagging-permission-error for how to resolve. Resource handler returned message: "You are not authorized to perform this operation. User: arn:aws:sts::543756193223:assumed-role/AWSReservedSSO_AWSAdministratorAccess_12e80943b90a4196/clyonga@nglic.com is not authorized to perform: ec2:RunInstances on resource: arn:aws:ec2:us-east-2:543756193223:instance/* with an explicit deny in a service control policy. (Service: Ec2, Status Code: 403, Request ID: fad62b04-9061-411c-9352-1faaa5ed0194)"" (RequestToken: 0196053a-f760-4785-cdc4-79603bd08345, HandlerErrorCode: UnauthorizedTaggingOperation)
+
+
+
+
+
+
+Resource handler returned message: "You are not authorized to perform this operation. User: arn:aws:sts::543756193223:assumed-role/AWSReservedSSO_AWSAdministratorAccess_12e80943b90a4196/clyonga@nglic.com is not authorized to perform: ec2:RunInstances on resource: arn:aws:ec2:us-east-2:543756193223:instance/* with an explicit deny in a service control policy. (Service: Ec2, Status Code: 403, Request ID: 19446803-7390-472a-9d20-7ec53b8992d8)" (RequestToken: 1ba72974-57d7-665f-e840-8d550d234311, HandlerErrorCode: AccessDenied)
