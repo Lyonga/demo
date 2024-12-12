@@ -1,1 +1,0 @@
-Properties validation failed for resource EC2Instance with message: [#/BlockDeviceMappings/0: extraneous key [Tags] is not permitted]

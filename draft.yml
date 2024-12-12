@@ -1,0 +1,27 @@
+AWS::EC2::Instance:
+  Type: AWS::EC2::Instance
+  Properties:
+    BlockDeviceMappings:
+      - DeviceName: "/dev/xvda"
+        Ebs:
+          VolumeSize: "10"
+          VolumeType: "gp2"
+          Encrypted: "true"
+          DeleteOnTermination: "true"
+    Tags:
+      - Key: Environment
+        Value: !Ref EnvironmentType
+      - Key: Project
+        Value: Traverse
+      - Key: Service-Name
+        Value: infrastructure
+    # Add this to ensure the EBS root volume gets the tags
+    TagSpecifications:
+      - ResourceType: "volume"
+        Tags:
+          - Key: Environment
+            Value: !Ref EnvironmentType
+          - Key: Project
+            Value: Traverse
+          - Key: Service-Name
+            Value: infrastructure
