@@ -512,6 +512,10 @@ Resources:
         - Key: "OS"
           Value: !Ref OSType
       IamInstanceProfile: !Ref EC2InstanceProfile
+      MetadataOptions:
+        HttpTokens: required
+        HttpEndpoint: enabled
+        HttpPutResponseHopLimit: 2
       UserData: !Base64
         Fn::Sub: |-
           <script>
