@@ -1,8 +1,16 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: NGL-AAE2-IP-VSA01 CloudFormation template to deploy a VPC with two private subnets spread across two Availability Zones. Also to create an auto scaling group and application load balancer.
 Parameters:
+  StackName:
+    Description: Name of stack, change to suit your naming style
+    Type: String
+    Default: dev-test-resiliency
   EnvironmentName:
     Description: NGL-AAE2-IP-VSA01CloudFormation
+    Type: String
+    Default: dev
+  EnvironmentScpTag:
+    Description: required tag value for SCP
     Type: String
     Default: dev
   DeploymentType:
@@ -23,7 +31,7 @@ Parameters:
   VpcEc2Subnet2:
     Description: EC2 subnet 2(AZ-c)
     Type: AWS::EC2::Subnet::Id
-    Default: subnet-05ff7acfc6abe84f5
+    Default: subnet-035e1d002080a6f84
   Ec2ImageId:
     Description: AMI ID
     Type: AWS::EC2::Image::Id
@@ -76,10 +84,6 @@ Parameters:
     Description: AutoScalingGroup DesiredCapacity
     Type: String
     Default: '1'
-  # Ec2InstanceSecurityGroup:
-  #   Description: instance security group
-  #   Type: String
-  #   Default: ""
   ADDirectoryId:
     Description: Active DirectoryId. Eg. d-12345679a
     Type: String
@@ -161,7 +165,7 @@ Parameters:
     AllowedValues:
       - linux
       - windows
-    Default: linux
+    Default: windows
   EmailAddress:
     Type: String
     Default: clyonga@nglic.com
@@ -197,6 +201,11 @@ Mappings:
       InstanceType: t2.micro
     prod:
       InstanceType: t2.small
+  TaggingMap:
+    TagName1:
+      Name: 'tset-server'
+    TagValue1:
+      Value: 'd-server-01m3tf8qctifwj'  
 Resources:
   myssmdocument:                      ##ssm domain join document
     Type: AWS::SSM::Document
@@ -229,13 +238,13 @@ Resources:
       RoleName: myEC2Role
       Description: Instance role to attach to your EC2 instance
       Tags:
-        - Key: "Name"
+        - Key: Name
           Value: myEC2Role
-        - Key: "Environment"
-          Value: !Ref EnvironmentType
-        - Key: "Project"
-          Value: "Traverse"
-        - Key: service-name
+        - Key: Environment
+          Value: !Ref EnvironmentScpTag
+        - Key: Project
+          Value: infrastructure-tools
+        - Key: Service-Name
           Value: infrastructure
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -475,7 +484,32 @@ Resources:
               command: powershell -Command "C:\\'Program Files'\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl.ps1 -a stop"
             02_start_service:
               command: powershell -Command "C:\\'Program Files'\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl.ps1 -a fetch-config -m ec2 -c file:C:\\ProgramData\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent.json -s"
+
+        04_download_crowdstrike_config_script:            
+          commands:
+            downloadscript:
+              command: !Sub |
+                powershell -Command "read-s3object -BucketName ${S3BucketName} -Key scripts/CROWDSTRIKE.EXE -File C:\\Scripts\\CROWDSTRIKE.EXE"
+        05_download_rapid7_config_script:            
+          commands:
+            downloadscript:
+              command: !Sub |
+                powershell -Command "read-s3object -BucketName ${S3BucketName} -Key scripts/RAPID7_X86_64.MSI -File C:\\Scripts\\RAPID7_X86_64.MSI"
+        06_download_syxsense_config_script:            
+          commands:
+            downloadscript:
+              command: !Sub |
+                powershell -Command "read-s3object -BucketName ${S3BucketName} -Key scripts/SYXSENSE_RESPONDERSETUP461.MSI -File C:\\Scripts\\SYXSENSE_RESPONDERSETUP461.MSI"
+        07_run_crowdstrike_config_script:            
+          commands:
+            runscript: 
+              command: !Sub |
+                powershell -Command "C:\\Scripts\\CROWDSTRIKE.EXE -S3BucketName ${CrowdStrikeS3BucketName} -SecretName ${CrowdStrikeSecretName} -Debug ${CrowdStrikeDebug}"
+
     Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Ec2InstanceLaunchTemplateTest
+        Version: !GetAtt Ec2InstanceLaunchTemplateTest.LatestVersionNumber
       AvailabilityZone: !Ref AvailabilityZone
       SubnetId:
         Ref: VpcEc2Subnet1
@@ -484,7 +518,7 @@ Resources:
       ImageId: !Ref Ec2ImageId
       InstanceType: !FindInMap [EnvironmentToInstanceType, !Ref EnvironmentType, InstanceType]
       SsmAssociations:
-        - DocumentName: !Ref myssmdocument  ###infra domain join with userdata or shell script
+        - DocumentName: !Ref myssmdocument  ###infra domain join without userdata or shell script
           AssociationParameters:
             - Key: directoryId
               Value:
@@ -498,24 +532,36 @@ Resources:
                 - !Ref ADDnsIpAddresses2
       SecurityGroupIds:
         - !Ref WebAppSecurityGroup
-      Tags:
-        - Key: "Name"
-          Value: myEC2instance
-        - Key: "Project"
-          Value: Traverse
-        - Key: "Environment"
-          Value: !Ref EnvironmentType
-        - Key: "Service-Name"
-          Value: infrastructure
-        - Key: "backup"
-          Value: "true"
-        - Key: "OS"
-          Value: !Ref OSType
+      EbsOptimized: true
+      # MetadataOptions:
+      #   HttpTokens: required
+      #   HttpEndpoint: enabled
+      #   HttpPutResponseHopLimit: 2
+      # Tags:
+      #   # - Key: Name
+      #   #   Value: !Sub "${AWS::StackName}-root-vol"
+      #   # - Key: !FindInMap [ TaggingMap, TagName1, Name ]
+      #   #   Value: !FindInMap [ TaggingMap, TagValue1, Value ]  
+      #   - Key: Project
+      #     Value: infrastructure-tools
+      #   - Key: Environment
+      #     Value: dev
+      #   - Key: Service-Name
+      #     Value: infrastructure
+        # - Key: backup
+        #   Value: true
+        # - Key: OS
+        #   Value: !Ref OSType
+        # - Key: environment_name
+        #   Value: dev
+        # - Key: product_name
+        #   Value: infrastructure
+        # - Key: project_name
+        #   Value: Traverse
+        # - Key: service_name
+        #   Value: infrastructure
       IamInstanceProfile: !Ref EC2InstanceProfile
-      MetadataOptions:
-        HttpTokens: required
-        HttpEndpoint: enabled
-        HttpPutResponseHopLimit: 2
+      PropagateTagsToVolumeOnCreation: true        ####extend instance tags to root volume
       UserData: !Base64
         Fn::Sub: |-
           <script>
@@ -525,42 +571,40 @@ Resources:
           cfn-init.exe -v --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region} --configsets default
           cfn-signal.exe -e %errorlevel% --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region}
           </script>
-      BlockDeviceMappings:
-        - DeviceName: "/dev/xvda"
-          Ebs:
-            VolumeSize: "10"
-            VolumeType: "gp2"
-            Encrypted: "true"
-            DeleteOnTermination: "true"
-      Monitoring: true
-  AdditionalVolume:
-    Type: AWS::EC2::Volume
-    Condition: IsGeneric
-    Properties:
-      AvailabilityZone: !Ref AvailabilityZone
-      Size: 8
-      VolumeType: gp3
-      Encrypted: true
-      Tags:
-        - Key: "Name"
-          Value: AttachedEBSVolume
-        - Key: "Project"
-          Value: Traverse
-        - Key: "Environment"
-          Value: !Ref EnvironmentType
-        - Key: "Service-Name"
-          Value: infrastructure
-        - Key: "backup"
-          Value: "true"
-        - Key: "Backup"
-          Value: true
-  VolumeAttachment:
-    Type: AWS::EC2::VolumeAttachment
-    Condition: IsGeneric
-    Properties:
-      InstanceId: !Ref EC2Instance
-      VolumeId: !Ref AdditionalVolume
-      Device: "/dev/xvdf"
+  #     BlockDeviceMappings:
+  #       - DeviceName: "/dev/xvda"
+  #         Ebs:
+  #           VolumeSize: "8"
+  #           VolumeType: "gp2"
+  #           Encrypted: "true"
+  #           DeleteOnTermination: "true"
+  #     Monitoring: true
+  # AdditionalVolume:
+  #   Type: AWS::EC2::Volume
+  #   Condition: IsGeneric
+  #   Properties:
+  #     AvailabilityZone: !Ref AvailabilityZone
+  #     Size: 8
+  #     VolumeType: gp3
+  #     Encrypted: true
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub "${AWS::StackName}-ebs-vol"
+  #       - Key: Project
+  #         Value: infrastructure-tools
+  #       - Key: Environment
+  #         Value: !Ref EnvironmentScpTag
+  #       - Key: Service-Name
+  #         Value: infrastructure
+  #       - Key: backup
+  #         Value: true
+  # VolumeAttachment:
+  #   Type: AWS::EC2::VolumeAttachment
+  #   Condition: IsGeneric
+  #   Properties:
+  #     InstanceId: !Ref EC2Instance
+  #     VolumeId: !Ref AdditionalVolume
+  #     Device: "/dev/xvdf"
   EC2InstanceAutoRecovery: ###### instance recovery for 1dp over a minute StatusCheckFailed_System to recover or reboot ec2.
     Type: AWS::CloudWatch::Alarm
     Condition: IsGeneric
@@ -603,14 +647,54 @@ Resources:
           ToPort: 3389
           CidrIp: 0.0.0.0/0
       Tags:
-        - Key: "Name"
+        - Key: Name
           Value: !Sub "${EnvironmentName} WebAppSecurityGroup"
-        - Key: "Project"
-          Value: Traverse
-        - Key: "Environment"
-          Value: !Ref EnvironmentType
-        - Key: "Service-Name"
+        - Key: Project
+          Value: infrastructure-tools
+        - Key: Environment
+          Value: !Ref EnvironmentScpTag
+        - Key: Service-Name
           Value: infrastructure
+  ####
+  Ec2InstanceLaunchTemplateTest:
+    Type: AWS::EC2::LaunchTemplate
+    #Condition: IsCluster
+    DeletionPolicy: Delete
+    Properties:
+      LaunchTemplateName: NGL-AAE2-IP-VSA01AutoScaling
+      LaunchTemplateData:
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Ref 'Ec2InstanceTagName'
+              - Key: Project
+                Value: infrastructure-tools
+              - Key: Backup
+                Value: true
+              - Key: Service-Name
+                Value: infrastructure
+              - Key: Environment
+                Value: !Ref EnvironmentScpTag
+              - Key: OS
+                Value: !Ref OSType
+          - ResourceType: volume
+            Tags:
+              - Key: Name
+                Value: !Ref 'Ec2InstanceTagName'
+              - Key: Backup
+                Value: true
+              - Key: Project
+                Value: infrastructure-tools
+              - Key: Environment
+                Value: !Ref EnvironmentScpTag
+              - Key: Service-Name
+                Value: infrastructure
+        MetadataOptions:
+          HttpTokens: required
+          HttpEndpoint: enabled
+          HttpPutResponseHopLimit: 1
+######################
   Ec2InstanceLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Condition: IsCluster
@@ -623,17 +707,15 @@ Resources:
             Tags:
               - Key: Name
                 Value: !Ref 'Ec2InstanceTagName'
-              - Key: project
-                Value: infrastructure
+              - Key: Project
+                Value: infrastructure-tools
               - Key: Backup
                 Value: true
-              - Key: service-name
+              - Key: Service-Name
                 Value: infrastructure
-              - Key: "Project"
-                Value: Traverse
-              - Key: "Environment"
-                Value: !Ref EnvironmentType
-              - Key: "OS"
+              - Key: Environment
+                Value: !Ref EnvironmentScpTag
+              - Key: OS
                 Value: !Ref OSType
           - ResourceType: volume
             Tags:
@@ -641,11 +723,11 @@ Resources:
                 Value: !Ref 'Ec2InstanceTagName'
               - Key: Backup
                 Value: true
-              - Key: "Project"
-                Value: Traverse
-              - Key: "Environment"
-                Value: !Ref EnvironmentType
-              - Key: "Service-Name"
+              - Key: Project
+                Value: infrastructure-tools
+              - Key: Environment
+                Value: !Ref EnvironmentScpTag
+              - Key: Service-Name
                 Value: infrastructure
         IamInstanceProfile:
           Name: !Ref EC2InstanceProfile
@@ -653,6 +735,10 @@ Resources:
         KeyName: !Ref 'Ec2InstanceKeyName'
         ImageId: !Ref 'Ec2ImageId'
         InstanceType: !Ref 'Ec2InstanceType'
+        MetadataOptions:
+          HttpTokens: required
+          HttpEndpoint: enabled
+          HttpPutResponseHopLimit: 1
         NetworkInterfaces:
           - DeviceIndex: 0
             AssociatePublicIpAddress: false
@@ -723,13 +809,13 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName} Allow SSH HTTP
-        - Key: project
-          Value: Traverse
-        - Key: environment
-          Value: !Ref 'EnvironmentType'
+        - Key: Project
+          Value: infrastructure-tools
+        - Key: Environment
+          Value: !Ref 'EnvironmentScpTag'
         - Key: Backup
           Value: true
-        - Key: service-name
+        - Key: Service-Name
           Value: infrastructure
   WebServerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -759,13 +845,13 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName} Allow SSH HTTP
-        - Key: project
-          Value: Traverse
-        - Key: environment
-          Value: !Ref 'EnvironmentType'
+        - Key: Project
+          Value: infrastructure-tools
+        - Key: Environment
+          Value: !Ref 'EnvironmentScpTag'
         - Key: Backup
           Value: true
-        - Key: service-name
+        - Key: Service-Name
           Value: infrastructure
   cpuUsage:
     Type: AWS::AutoScaling::ScalingPolicy
@@ -814,13 +900,13 @@ Resources:
       Tags:
         - Key: Name
           Value: NGL-AAE2-IP-VSA01CloudFormationTG
-        - Key: project
-          Value: infrastructure
-        - Key: environment
+        - Key: Project
+          Value: infrastructure-tools
+        - Key: Environment
           Value: !Ref 'EnvironmentName'
         - Key: Backup
           Value: true
-        - Key: service-name
+        - Key: Service-Name
           Value: infrastructure
   ASGALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -836,13 +922,13 @@ Resources:
       Tags:
         - Key: Name
           Value: NGL-AAE2-IP-VSA01CloudFormationALB
-        - Key: project
-          Value: Traverse
-        - Key: environment
-          Value: !Ref 'EnvironmentType'
+        - Key: Project
+          Value: infrastructure-tools
+        - Key: Environment
+          Value: !Ref 'EnvironmentScpTag'
         - Key: Backup
           Value: true
-        - Key: service-name
+        - Key: Service-Name
           Value: infrastructure
   ASGALBlistener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -862,14 +948,14 @@ Resources:
       FileSystemTags:
         - Key: Name
           Value: !If [hasFsTags, !Ref FileSystemName, !Sub "${AWS::StackName}FileSystem"]
-        - Key: "Environment"
-          Value: !Ref EnvironmentType
-        - Key: "Project"
-          Value: "Traverse"
-        - Key: service-name
+        - Key: Environment
+          Value: !Ref EnvironmentScpTag
+        - Key: Project
+          Value: infrastructure-tools
+        - Key: Service-Name
           Value: infrastructure
-        - Key: "Backup"
-          Value: "true"
+        - Key: Backup
+          Value: true
       KmsKeyId: !If [useDefaultCMK, !Ref "AWS::NoValue", !Ref KmsKeyId]
       PerformanceMode: !Ref PerformanceMode
       ThroughputMode: !Ref ThroughputMode
@@ -902,201 +988,7 @@ Resources:
           FromPort: !Ref FileSharePort
           ToPort: !Ref FileSharePort
           SourceSecurityGroupId: !Ref WebAppSecurityGroup
-  # FSx for Windows AMI
-  # FSxFileSystem:
-  #   Type: AWS::FSx::FileSystem
-  #   Condition: !And [IsCluster, IsWindows]
-  #   Properties:
-  #     FileSystemType: WINDOWS
-  #     StorageCapacity: 300
-  #     SubnetIds:
-  #       - !Ref VpcEc2Subnet1
-  #       - !Ref VpcEc2Subnet2
-  #     WindowsConfiguration:
-  #     ThroughputCapacity: 16
-  #     #ActiveDirectoryId: !Ref ActiveDirectoryId
-  ################# MORE ALERTS
-  ##CPU Utilization
-  # snstopic:
-  #   Type: 'AWS::SNS::Topic'
-  #   Properties:
-  #     TopicName: !Ref warningsns
-  #     Subscription:
-  #       - Endpoint: !Ref EmailAddress
-  #         Protocol: email
-  # CriticalsSnsTopic:
-  #   Type: 'AWS::SNS::Topic'
-  #   Properties:
-  #     TopicName: !Ref criticalsns
-  #     Subscription:
-  #       - Endpoint: !Ref EmailAddress
-  #         Protocol: email
-  # CPUAlarmWARNING: ###CPU of 90% for 1 dp over 15 mins
-  #   Type: AWS::CloudWatch::Alarm
-  #   DeletionPolicy: Retain
-  #   Condition: IsGeneric
-  #   Properties:
-  #     AlarmDescription: !Sub "${instancename} - ${EC2Instance} - High CPU Usage 80%"
-  #     AlarmActions:
-  #       - Ref: snstopic
-  #     OKActions:
-  #       - Ref: snstopic
-  #     MetricName: CPUUtilization
-  #     Namespace: AWS/EC2
-  #     Statistic: Average
-  #     Period: '900'
-  #     EvaluationPeriods: '1'
-  #     Threshold: '80'
-  #     ComparisonOperator: GreaterThanOrEqualToThreshold
-  #     Dimensions:
-  #       - Name: InstanceId
-  #         Value: !Ref EC2Instance
-  # MemoryAlarmCRITICAL:
-  #   Type: AWS::CloudWatch::Alarm
-  #   Condition: IsGeneric
-  #   Properties:
-  #     AlarmDescription: !Sub "${instancename} - ${EC2Instance} - High Memory Usage 90%"
-  #     AlarmActions:
-  #       - Ref: CriticalsSnsTopic
-  #     OKActions:
-  #       - Ref: CriticalsSnsTopic
-  #     MetricName: "mem_used_percent"
-  #     Namespace: CWAgent
-  #     Statistic: Average
-  #     Period: '900'
-  #     EvaluationPeriods: '1'
-  #     Threshold: '90'
-  #     ComparisonOperator: GreaterThanOrEqualToThreshold
-  #     Dimensions:
-  #       - Name: InstanceId
-  #         Value: !Ref EC2Instance
-  # InstanceStatusAlarmCRITICAL: ###########StatusCheckFailed_Instance > 0 for 3 datapoints within 3 minutes
-  #   Type: AWS::CloudWatch::Alarm
-  #   Condition: IsGeneric
-  #   Properties:
-  #     AlarmDescription: !Sub "${instancename} - ${EC2Instance} - Instance Status Check Failed - please investigate. Troubleshooting: https://goo.gl/Ea27Gd"
-  #     Namespace: AWS/EC2
-  #     MetricName: StatusCheckFailed_Instance
-  #     Statistic: Minimum
-  #     Period: '60'
-  #     EvaluationPeriods: '3'
-  #     ComparisonOperator: GreaterThanThreshold
-  #     Threshold: '0'
-  #     AlarmActions:
-  #       - Ref: CriticalsSnsTopic
-  #     OKActions:
-  #       - Ref: CriticalsSnsTopic
-  #     Dimensions:
-  #       - Name: InstanceId
-  #         Value: !Ref EC2Instance
-  # DiskSpaceAlarmCRITICAL:
-  #   Type: AWS::CloudWatch::Alarm
-  #   Condition: IsGeneric
-  #   Properties:
-  #     AlarmDescription: !Sub "${instancename} - ${EC2Instance} - over 95% of ${volume} volume space is in use"
-  #     AlarmActions:
-  #       - Ref: CriticalsSnsTopic
-  #     OKActions:
-  #       - Ref: CriticalsSnsTopic
-  #     MetricName: "disk_used_percent"
-  #     Namespace: CWAgent
-  #     Statistic: Average
-  #     Period: '300'
-  #     EvaluationPeriods: '1'
-  #     Threshold: '95'
-  #     ComparisonOperator: GreaterThanOrEqualToThreshold
-  #     Dimensions:
-  #       - Name: InstanceId
-  #         Value: !Ref EC2Instance
-  #       - Name: device
-  #         Value: !Ref volume
-  #       - Name: path
-  #         Value: !Ref path
-  #       - Name: fstype
-  #         Value: !Ref fstype
-  # MemoryBytesAlarmWARNING:
-  #   Type: AWS::CloudWatch::Alarm
-  #   Condition: IsGeneric
-  #   Properties:
-  #     AlarmDescription: !Sub "${instancename} - ${EC2Instance} - High Memory Usage 90%"
-  #     AlarmActions:
-  #       - Ref: snstopic
-  #     OKActions:
-  #       - Ref: snstopic
-  #     MetricName: "Memory % Committed Bytes In Use"
-  #     Namespace: CWAgent
-  #     Statistic: Average
-  #     Period: '900'
-  #     EvaluationPeriods: '1'
-  #     Threshold: '90'
-  #     ComparisonOperator: GreaterThanOrEqualToThreshold
-  #     Dimensions:
-  #       - Name: InstanceId
-  #         Value: !Ref EC2Instance
-  #       - Name: objectname
-  #         Value: Memory
-  # SystemStatusAlertCRITICAL: ###status check(StatusCheckFailed_System) 2dp over 2 mins
-  #   Type: AWS::CloudWatch::Alarm
-  #   Condition: IsGeneric
-  #   Properties:
-  #     AlarmDescription: !Sub "${instancename} - ${EC2Instance} - instance recovery process has been triggered because of failed System Status Check"
-  #     Namespace: AWS/EC2
-  #     MetricName: StatusCheckFailed_System
-  #     Statistic: Minimum
-  #     Period: '60'
-  #     EvaluationPeriods: '2'
-  #     ComparisonOperator: GreaterThanThreshold
-  #     Threshold: '0'
-  #     AlarmActions:
-  #       - !Sub "arn:aws:automate:${AWS::Region}:ec2:recover"
-  #       - Ref: snstopic
-  #     OKActions:
-  #       - Ref: snstopic
-  #     Dimensions:
-  #       - Name: InstanceId
-  #         Value: !Ref EC2Instance
-  # InstanceStatusAlarmReboot: ####### StatusCheckFailed_Instance > 0 for 3 datapoints within 3 minutes
-  #   Type: AWS::CloudWatch::Alarm
-  #   Condition: IsGeneric
-  #   Properties:
-  #     AlarmDescription: !Sub "${instancename} - ${EC2Instance} - Instance Status Check Failed - please investigate. Troubleshooting: https://goo.gl/Ea27Gd"
-  #     Namespace: AWS/EC2
-  #     MetricName: StatusCheckFailed_Instance
-  #     Statistic: Minimum
-  #     Period: '60'
-  #     EvaluationPeriods: '3'
-  #     ComparisonOperator: GreaterThanThreshold
-  #     Threshold: '0'
-  #     AlarmActions:
-  #       - Ref: CriticalsSnsTopic
-  #     OKActions:
-  #       - Ref: CriticalsSnsTopic
-  #     Dimensions:
-  #       - Name: InstanceId
-  #         Value: !Ref EC2Instance
-  # DiskSpaceWARNING:
-  #   Type: AWS::CloudWatch::Alarm
-  #   Condition: IsGeneric
-  #   Properties:
-  #     AlarmDescription: !Sub "${instancename} - ${EC2Instance} - over 90% of ${volume} Drive space is in use"
-  #     AlarmActions:
-  #       - Ref: snstopic
-  #     OKActions:
-  #       - Ref: snstopic
-  #     MetricName: "LogicalDisk % Free Space"
-  #     Namespace: CWAgent
-  #     Statistic: Average
-  #     Period: '300'
-  #     EvaluationPeriods: '1'
-  #     Threshold: '10'
-  #     ComparisonOperator: LessThanOrEqualToThreshold
-  #     Dimensions:
-  #       - Name: InstanceId
-  #         Value: !Ref EC2Instance
-  #       - Name: instance
-  #         Value: !Ref volume
-  #       - Name: objectname
-  #         Value: LogicalDisk
+
 Outputs:
   WebAppSecurityGroupId:
     Description: Security Group ID for the web application
