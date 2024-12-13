@@ -204,19 +204,19 @@ Ec2InstanceLaunchTemplateTest:
           HttpTokens: required
           HttpEndpoint: enabled
           HttpPutResponseHopLimit: 1
-      UserData: 
-        #Fn::Sub: |-
-        'Fn::Base64': !Sub |
-          <script>
-          mkdir C:\Downloads\Amazon\AmazonCloudWatchAgent
-          powershell -Command "(New-Object Net.WebClient).DownloadFile('https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi','C:\Downloads\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.msi')"
-          C:\Downloads\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.msi
-          cfn-init.exe -v --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region} --configsets default
-          cfn-signal.exe -e %errorlevel% --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region}
-          </script>
+        UserData: 
+          Fn::Sub: |-
+            <script>
+            mkdir C:\Downloads\Amazon\AmazonCloudWatchAgent
+            powershell -Command "(New-Object Net.WebClient).DownloadFile('https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi','C:\Downloads\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.msi')"
+            C:\Downloads\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.msi
+            cfn-init.exe -v --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region} --configsets default
+            cfn-signal.exe -e %errorlevel% --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region}
 
 
 
 
 
+
+Resource handler returned message: "Invalid BASE64 encoding of user data. (Service: AmazonEC2; Status Code: 400; Error Code: InvalidUserData.Malformed; Request ID: 72fb4aea-2a26-4021-b358-db524b962d8c; Proxy: null)" (RequestToken: 6f0c9f89-3d2f-91d3-117a-19c0ef3a4ef6, HandlerErrorCode: GeneralServiceException)
 Properties validation failed for resource Ec2InstanceLaunchTemplateTest with message: [#: extraneous key [UserData] is not permitted]
