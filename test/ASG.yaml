@@ -1,0 +1,35 @@
+AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Condition: IsCluster
+    DeletionPolicy: Delete
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref Ec2InstanceLaunchTemplate
+        Version: !GetAtt Ec2InstanceLaunchTemplate.LatestVersionNumber
+      MinSize: !Ref 'Ec2AutoscaleMinSize'
+      MaxSize: !Ref 'Ec2AutoscaleMaxSize'
+      DesiredCapacity: !Ref 'Ec2AutoscaleDesiredCapacity'
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 300
+      VPCZoneIdentifier:
+        - !Ref 'VpcEc2Subnet1'
+        - !Ref 'VpcEc2Subnet2'
+      TargetGroupARNs:
+        - !Ref ALBTargetGroups
+      LaunchConfigurationName:
+        Ref: Ec2InstanceLaunchTemplate
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Allow SSH HTTP
+        - Key: Project
+          Value: infrastructure-tools
+        - Key: Environment
+          Value: !Ref 'EnvironmentScpTag'
+        - Key: Backup
+          Value: true
+        - Key: Service-Name
+          Value: infrastructure
+
+
+
+Properties validation failed for resource AutoScalingGroup with message: #/Tags/0: required key [PropagateAtLaunch] not found #/Tags/1: required key [PropagateAtLaunch] not found #/Tags/2: required key [PropagateAtLaunch] not found #/Tags/3: required key [PropagateAtLaunch] not found #/Tags/4: required key [PropagateAtLaunch] not found
