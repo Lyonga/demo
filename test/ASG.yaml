@@ -30,7 +30,7 @@ AutoScalingGroup:
         - Key: Service-Name
           Value: infrastructure
 
-
+Resource handler returned message: "Invalid request provided: Invalid InstanceId format: lt-0c8cc23f319c4b0e9 (Service: Ssm, Status Code: 400, Request ID: 7c8259a4-8062-4b2a-b5fc-228c2f7c02cf)" (RequestToken: 4e323da0-78cb-ae30-207b-303208d34c24, HandlerErrorCode: InvalidRequest)
 
 Properties validation failed for resource AutoScalingGroup with message: #/Tags/0: required key [PropagateAtLaunch] not found #/Tags/1: required key [PropagateAtLaunch] not found #/Tags/2: required key [PropagateAtLaunch] not found #/Tags/3: required key [PropagateAtLaunch] not found #/Tags/4: required key [PropagateAtLaunch] not found
 
