@@ -30,6 +30,34 @@ AutoScalingGroup:
         - Key: Service-Name
           Value: infrastructure
 
+
+
+        UserData:
+  'Fn::Base64': !Sub |
+    <script>
+    # Create a directory and download the CloudWatch agent MSI
+    mkdir C:\Downloads\Amazon\AmazonCloudWatchAgent
+    powershell -Command "(New-Object Net.WebClient).DownloadFile('https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi','C:\Downloads\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.msi')"
+    C:\Downloads\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.msi
+
+    # Run cfn-init to apply CloudWatch agent configuration and other init steps
+    cfn-init.exe -v --stack ${AWS::StackId} --resource Ec2InstanceLaunchTemplate --region ${AWS::Region} --configsets default
+
+    # Now install IIS after CloudWatch agent setup is done
+    powershell -Command "Install-WindowsFeature -Name Web-Server -IncludeManagementTools"
+
+    # Create a simple health check page for ALB
+    powershell -Command "\"Healthy\" | Out-File -FilePath C:\inetpub\wwwroot\index.html -Encoding utf8"
+
+    # Start the web service
+    powershell -Command "Start-Service W3SVC"
+
+    # Signal CloudFormation that instance setup is complete
+    cfn-signal.exe -e %errorlevel% --stack ${AWS::StackId} --resource AutoScalingGroup --region ${AWS::Region}
+    </script>
+
+
+
 Resources:
   myssmdocument:                      ##ssm domain join document
     Type: AWS::SSM::Document
