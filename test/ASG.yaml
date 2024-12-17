@@ -33,3 +33,6 @@ AutoScalingGroup:
 
 
 Properties validation failed for resource AutoScalingGroup with message: #/Tags/0: required key [PropagateAtLaunch] not found #/Tags/1: required key [PropagateAtLaunch] not found #/Tags/2: required key [PropagateAtLaunch] not found #/Tags/3: required key [PropagateAtLaunch] not found #/Tags/4: required key [PropagateAtLaunch] not found
+
+
+Resource handler returned message: "Valid requests must contain either LaunchTemplate, LaunchConfigurationName, InstanceId or MixedInstancesPolicy parameter. (Service: AutoScaling, Status Code: 400, Request ID: 264d34a7-6cd1-4d7e-96fa-d3ff6978ebba)" (RequestToken: a535831d-8477-d980-e37e-c41fe4f3e068, HandlerErrorCode: InvalidRequest)
