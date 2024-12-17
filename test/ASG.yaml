@@ -118,3 +118,21 @@ Properties validation failed for resource AutoScalingGroup with message: #/Tags/
 
 
 Resource handler returned message: "Valid requests must contain either LaunchTemplate, LaunchConfigurationName, InstanceId or MixedInstancesPolicy parameter. (Service: AutoScaling, Status Code: 400, Request ID: 264d34a7-6cd1-4d7e-96fa-d3ff6978ebba)" (RequestToken: a535831d-8477-d980-e37e-c41fe4f3e068, HandlerErrorCode: InvalidRequest)
+
+
+
+
+
+2022-03-30T19:07:28Z I! [logagent] starting
+2022-03-30T19:07:28Z I! [processors.ec2tagger] ec2tagger: EC2 tagger has started initialization.
+2022-03-30T19:07:28Z I! cloudwatch: get unique roll up list []
+2022-03-30T19:07:28Z I! cloudwatch: publish with ForceFlushInterval: 1m0s, Publish Jitter: 54s
+2022-03-30T19:07:28Z I! [processors.ec2tagger] ec2tagger: Initial retrieval of tags succeded
+2022-03-30T19:07:28Z I! [processors.ec2tagger] ec2tagger: EC2 tagger has started, finished initial retrieval of tags and Volumes
+2022-03-30T19:34:31Z I! Profiler is stopped during shutdown
+2022-03-30T19:34:31Z I! [agent] Hang on, flushing any cached metrics before shutdown
+2024/12/17 20:46:52 I! 2024/12/17 20:46:52 E! ec2metadata is not available
+I! Detected the instance is OnPrem
+2024/12/17 20:46:52 Reading json config file path: C:\ProgramData\Amazon\AmazonCloudWatchAgent\\amazon-cloudwatch-agent.json ...
+C:\ProgramData\Amazon\AmazonCloudWatchAgent\\amazon-cloudwatch-agent.json does not exist or cannot read. Skipping it.
+2024/12/17 20:46:52 Reading json config file path: C:\ProgramData\Amazon\AmazonCloudWatchAgent\Configs\default ...
