@@ -136,3 +136,44 @@ I! Detected the instance is OnPrem
 2024/12/17 20:46:52 Reading json config file path: C:\ProgramData\Amazon\AmazonCloudWatchAgent\\amazon-cloudwatch-agent.json ...
 C:\ProgramData\Amazon\AmazonCloudWatchAgent\\amazon-cloudwatch-agent.json does not exist or cannot read. Skipping it.
 2024/12/17 20:46:52 Reading json config file path: C:\ProgramData\Amazon\AmazonCloudWatchAgent\Configs\default ...
+
+UserData:
+  Fn::Base64: !Sub |
+    <powershell>
+    # Ensure the directory for the config exists
+    if (!(Test-Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent")) {
+      New-Item -ItemType Directory -Path "C:\ProgramData\Amazon\AmazonCloudWatchAgent" | Out-Null
+    }
+
+    # Write the CloudWatch Agent configuration file
+    $cwConfig = @"
+    {
+      "metrics": {
+        "metrics_collected": {
+          "mem": {
+            "measurement": ["mem_used_percent"]
+          }
+        }
+      }
+    }
+    "@
+
+    $cwConfigPath = "C:\ProgramData\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.json"
+    $cwConfig | Out-File -FilePath $cwConfigPath -Encoding UTF8 -Force
+
+    # Install and run the CloudWatch Agent if not already done
+    # (If you've already done this step above, you can skip re-installing)
+    if (!(Test-Path "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1")) {
+      (New-Object Net.WebClient).DownloadFile(
+        "https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi",
+        "C:\Temp\amazon-cloudwatch-agent.msi"
+      )
+      msiexec.exe /i "C:\Temp\amazon-cloudwatch-agent.msi" /qn /norestart
+    }
+
+    # Fetch and start the agent with the new config
+    "C:\Program Files\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent-ctl.ps1" -a fetch-config -m ec2 -c file:$cwConfigPath -s
+    </powershell>
+
+
+
