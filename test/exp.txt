@@ -1,64 +1,13 @@
-### For Issue 1: "amazon-cloudwatch-agent.json not appearing at the designated path" The issue you're facing may boil down to how the CloudWatch Agent's configuration file is generated and where it's placed during the instance initialization. From the CloudFormation template, the `amazon-cloudwatch-agent.json` is being created by the `AWS::CloudFormation::Init` section under the `Ec2InstanceLaunchTemplateTest` resource. The file is defined within the `Metadata` section of the launch template and is expected to be placed in the path `C:\ProgramData\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.json`. #### Debugging Steps: 1. **Verify if your `cfn-init` runs successfully**: You’ve set up the user data to trigger `cfn-init` with the command: ```powershell cfn-init.exe -v --stack ${AWS::StackId} --resource Ec2InstanceLaunchTemplateTest --region ${AWS::Region} --configsets default ``` Check the instance logs (specifically `cfn-init` logs) to verify that `cfn-init` completes successfully and processes the metadata script. 2. **Ensure CloudWatch Agent Installation**: From your user data, you’re downloading and installing the CloudWatch agent MSI, and then running `cfn-init`. Ensure the command to download and install the CloudWatch agent works as expected before `cfn-init` is executed. You may need to add a small delay between downloading/installation and invoking `cfn-init` to good effect. 3. **Check if there's an error in the `cfn-init` output**: Run the following PowerShell command on the instance: ```powershell cfn-init.exe -v --stack ${AWS::StackId} --resource Ec2InstanceLaunchTemplateTest --region ${AWS::Region} --configsets default ``` Inspect the `cfn-init` debug logs in `C:\ProgramData\Amazon\CloudWatchAgent\Logs`. Check `cfn-init.log` for any issues when fetching or placing the `amazon-cloudwatch-agent.json` file. 4. **Check Permissions and Dependencies**: Double-check if the file path `C:\ProgramData\Amazon\AmazonCloudWatchAgent` has proper write permissions. Ensure that the agent has the correct IAM role attached to it to write to that path. #### Potential Fix: Confirm that your template properly installs the agent and that the path is correctly defined. It may also help to explicitly set permissions in the configuration if issues persist. --- ### For Issue 2: "Instances in Auto Scaling Group not adhering to the desired capacity and continuously restarting" It seems you’re experiencing issues with the EC2 instance scale-up behavior in the Auto Scaling Group (ASG). Specifically, the instances are scaling beyond the desired count (1), despite low CPU utilization. This could be due to misconfigured scaling policies or health check settings. #### Debugging Steps: 1. **Verify Scaling Policy Configuration**: In your template, the `cpuUsage` scaling policy is set to maintain a target CPU utilization of 60%. This might conflict or cause fluctuations depending on the instance load. You may want to revisit these settings to ensure they’re reflective of reasonable scaling policies. Specifically, check the `TargetTrackingScaling` configuration: ```yaml ScalingPolicy: Type: 'AWS::AutoScaling::ScalingPolicy' Properties: ... TargetTrackingConfiguration: PredefinedMetricSpecification: PredefinedMetricType: ASGAverageCPUUtilization TargetValue: 60 # Ensure it's set reasonably here ``` 2. **Use Cooldown Period**: No cooldown period is defined in your autoscaling policy. When instances scale in or out, AWS waits for a cooldown period before triggering new scaling actions. You might want to configure a reasonable `Cooldown` period to prevent scaling actions due to transient CPU fluctuations. 3. **Check `HealthCheckGracePeriod` Setting**: You have set `HealthCheckGracePeriod` as 300 seconds (5 minutes). This indicates a 5-minute grace period after an instance starts before considering it healthy. - If instances are reporting as unhealthy due to the CloudWatch agent not being fully initialized or similar causes, you might see them replaced despite low CPU utilization. 4. **Inspect Auto Scaling Group's `DesiredCapacity`**: Ensure your configuration for `DesiredCapacity` is set as: ```yaml DesiredCapacity: !Ref 'Ec2AutoscaleDesiredCapacity' ``` If your policy isn't triggering as expected or is overriding the desired state, instances could be scaling beyond that count. 5. **Test Scaling Metrics**: You need to confirm that the trigger metric (in this case, CPU utilization) actually aligns with your scaling decision logic. Set up a CloudWatch alarm to monitor CPU utilization to ensure it's within the expected range and no other misbehavior (like higher-than-intended instance launch thresholds). #### Potential Fix: - **Revisit and fine-tune scaling metrics**: Evaluate the CPU target percentage in autoscaling and consider using multiple metrics like memory or disk. - **Consider adjusting the scale-in policy**: Add a more conservative scale-in policy to prevent the scaling from overcompensating and continuously scaling back instances. You might also need to review the cloudwatch `CloudWatchAlarm` configuration. ### Final Thoughts: Fixing these two issues requires improving the diagnostics around CloudFormation initialization steps, validating auto scaling behavior, and ensuring IAM role permissions and instance health check settings. for 38 seconds
-Issue 1: The amazon-cloudwatch-agent.json file not appearing at C:\ProgramData\Amazon\AmazonCloudWatchAgent\ on the single EC2 instance
+work on a strategy, that captures monthly cost for teams, compare with previous months to and sends reports to teams or
+from fin ops standpoint, when there is an API call to deploy new resources, run a monthly cost estimate and send to teams if they approve costs 
+EIS items - E.B. and team bring back more specific benefit/risk details back for more specific decision maker routing (and just do the stuff that makes sense and doesn't require risk acceptance)
 
-You have the CloudFormation Init metadata defined on the Launch Template resource (Ec2InstanceLaunchTemplateTest) and you run cfn-init against that resource. This should, in theory, create the amazon-cloudwatch-agent.json file. If the CloudWatch agent is running but you don’t see the configuration file, consider the following points:
+You had some high level S3 conclusions in your presentation. Those recommendations may help turn the tide in this gradual increase but perhaps having a better understanding of what parts of the s3 
+growth is organic (and where we could expect that to level off based on data retention policies) vs what parts are driven by new functionality, use cases, etc. 
 
-Check Which Resource cfn-init Targets:
-In the user data for the single EC2 instance (generic deployment), you are correctly invoking:
+This chart starts to drill down on the ‘others’ bucket from the fully aggregated view which represents the biggest cost increase. This clearly calls out FSx as our single biggest increase over the year so it
+ would definitely be an area of focus. I know there is research occurring around VMC storage migration to FSx so I don’t know if the striking increase and 
+acceleration starting in May/Jun is driven by that or other activities and how that may be influence the next steps. The optimizations suggested make sense but I lack context on the root source of the costs.
 
-powershell
-Copy code
-cfn-init.exe -v --stack ${AWS::StackId} --resource Ec2InstanceLaunchTemplateTest --region ${AWS::Region} --configsets default
-Make sure the resource name matches exactly the resource that contains the AWS::CloudFormation::Init metadata. In your snippet, it does (Ec2InstanceLaunchTemplateTest is the resource with AWS::CloudFormation::Init).
-
-Examine the Logs on the Instance:
-Log into the instance and check the following log files:
-
-C:\cfn\log\cfn-init.log: This shows what cfn-init did, which config sets it ran, and whether it encountered errors creating files.
-C:\cfn\log\cfn-wire.log: Another log that can help diagnose issues with metadata retrieval.
-If cfn-init ran successfully, it should have created the file as instructed by the 02_config-amazon-cloudwatch-agent config. If there’s an error, the log will explain why the file wasn’t created.
-
-Ensure Directories Are Automatically Created:
-The files key in AWS::CloudFormation::Init should automatically create directories as needed. Still, confirm that C:\ProgramData\Amazon\AmazonCloudWatchAgent\ is being created. If the directory is missing, cfn-init logs will show why.
-
-Check for Overwrites or Later Steps:
-In your template, 03_restart_amazon-cloudwatch-agent runs after 02_config-amazon-cloudwatch-agent. Ensure that the agent isn’t restarted with a configuration path that doesn’t point to your intended file. The commands in 03_restart_amazon-cloudwatch-agent fetch config from the same file path, so it should be fine, but worth verifying no conflicts occur.
-
-Summary for Issue 1:
-The logic is correct in principle, but you need to check the cfn-init logs on the instance to see why the file isn’t appearing. It’s likely cfn-init isn’t executing as expected, or there’s a subtle error in the init process.
-
-Issue 2: The "Cluster" deployment with ASG keeps launching new instances beyond the desired count
-
-If your Auto Scaling Group is configured with a desired capacity of 1, but you see more instances cycling, it usually means the existing instance(s) are failing health checks and being replaced. Common causes:
-
-Health Check Type is ELB but No Successful Health Check:
-You’ve specified:
-
-yaml
-Copy code
-HealthCheckType: ELB
-and provided a target group that checks a path (e.g., /index.html). If your instances don’t serve any content on that path, the Load Balancer will mark them as unhealthy. An unhealthy instance triggers the ASG to terminate it and launch a new one, leading to a cycle of replacements.
-
-Fix: Ensure the instances run a service that returns a 200 OK response at the health check path, or change the health check path to something that exists. Alternatively, switch to EC2 health checks until you have a functioning application. Without a healthy check response, the ASG will continuously cycle instances.
-
-Scaling Policy with Wrong Conditions:
-You have a scaling policy related to CPU utilization. This generally wouldn’t cause infinite instance restarts if your desired count is stable. Still, if your CPU or health check configuration is off, it can trigger unexpected scaling.
-
-Check if You’re Mixing cfn-signal and ASG:
-In your cluster user data:
-
-powershell
-Copy code
-cfn-signal.exe -e %errorlevel% --stack ${AWS::StackId} --resource AutoScalingGroup --region ${AWS::Region}
-cfn-signal is typically used to signal a CreationPolicy or WaitCondition, not an ASG directly. Unless you have set a CreationPolicy on the ASG (which you haven’t included in the snippet), this signal does nothing for stabilization. The lack of proper signaling might cause the stack never to reach a stable CREATE_COMPLETE state, though this wouldn’t normally cause the ASG to launch more instances after the stack completes. It’s more about CloudFormation’s perspective, not ASG’s.
-
-Check for a Health Check Grace Period:
-You set HealthCheckGracePeriod: 300. Ensure the instances can come up and pass health checks within that time. If not, they’ll be terminated early and replaced.
-
-Most Likely Root Cause for Issue 2:
-Your instances are never passing the ELB health check. The ASG sees them as unhealthy and launches replacements repeatedly. Confirm that the application (or at least a test file) is served from /index.html so that the ELB health check passes, stabilizing the environment.
-
-In Summary:
-
-For the missing amazon-cloudwatch-agent.json file: Check cfn-init logs on the instance to confirm the file creation and see if there are errors.
-For the ASG scaling issue: Ensure your health checks pass. If the target group’s health check URL doesn’t return a 200 OK, the instances will constantly be replaced, making it look like the ASG is ignoring your desired count.
+The final drill down view into the ‘others’ bucket shows that the primary increase is in the ECS for EKS service. I know we started using mulesoft heavily this year so I expect that one is the most obviously
+ explainable of the bunch in the form of an architecture decision and has also seemed to largely stabilized since that initial implementation. At that point all other increases are less than 250/month
