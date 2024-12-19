@@ -1,0 +1,49 @@
+7. Cost Visibility & Monitoring
+Key Aspects:
+Budgets & Alerts: Set budget thresholds and receive notifications when costs exceed predefined limits.
+Cost Explorer: Analyze historical spending patterns and create custom reports.
+Trusted Advisor: Use AWS Trusted Advisor to get automated best practice recommendations on cost optimization.
+AWS Cost Anomaly Detection: Detect unusual spikes in spending.
+Automated Implementation:
+Create Budgets with AWS Budgets:
+
+Use AWS Budgets to create monthly, quarterly, or yearly budgets.
+Configure notifications when a budget exceeds thresholds using Amazon SNS.
+Automate setup using AWS Budgets CLI or AWS SDKs.
+Enable Cost Explorer Reports:
+
+Enable Cost Explorer in the Management Console.
+Use Cost Explorer APIs to create reports and integrate them with dashboards like Amazon QuickSight.
+Use Trusted Advisor Automation:
+
+Enable Trusted Advisor for automatic checks on unused resources.
+Automate checks using AWS Lambda functions triggered by AWS Config rules.
+Cost Anomaly Detection:
+
+Create anomaly detection monitors using AWS Cost Anomaly Detection.
+Define anomaly detection models and set up alerting via Amazon SNS.
+8. Tagging & Resource Organization
+Key Aspects:
+Tagging Strategy: Define a consistent resource tagging policy (e.g., Environment, Project, Owner, CostCenter).
+Cost Allocation Tags: Enable cost allocation tags in the AWS Billing and Cost Management console.
+Automated Implementation:
+Tag Enforcement Using AWS Config:
+
+Create AWS Config rules such as required-tags to enforce specific tags on all AWS resources.
+Set remediation actions using AWS Systems Manager Automation.
+Auto-Tagging with Lambda:
+
+Deploy an AWS Lambda function triggered by CloudTrail events to auto-tag new resources.
+Example: Auto-apply Owner, Environment, or Project tags based on context.
+Tag Compliance Reporting:
+
+Use AWS Resource Groups Tag Editor to generate compliance reports.
+Automate compliance checks with AWS Config and Lambda.
+Automated Cleanup with Tag-Based Policies:
+
+Set policies in AWS Service Catalog or use AWS Organizations Service Control Policies (SCPs) to enforce tagging at the account level.
+Create lifecycle policies in S3 based on tags for automated data management.
+Custom Resource Management Scripts:
+
+Use Terraform or CloudFormation to enforce tagging policies during resource creation.
+Include tagging rules in CI/CD pipelines for infrastructure as code.
