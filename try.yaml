@@ -1,222 +1,115 @@
-Ec2InstanceLaunchTemplateTest:
-    Type: AWS::EC2::LaunchTemplate
-    DeletionPolicy: Delete
-    Metadata:
-      AWS::CloudFormation::Init:
-        configSets:
-          default:
-            - 00_setupCfnHup
-            - 01_CfnHup_service
-            - 02_config-amazon-cloudwatch-agent
-            - 03_restart_amazon-cloudwatch-agent
-          UpdateEnvironment:
-            - 02_config-amazon-cloudwatch-agent
-            - 03_restart_amazon-cloudwatch-agent
-
-        # Cfn-hup setting, it is to monitor the change of metadata.
-        # When there is change in the contents of json file in the metadata section, cfn-hup will call cfn-init to restart the AmazonCloudWatchAgent.
-        00_setupCfnHup:
-          files:
-            c:\cfn\cfn-hup.conf:
-              content: !Sub |
-                [main]
-                stack=${AWS::StackId}
-                region=${AWS::Region}
-                interval=1
-            c:\cfn\hooks.d\amazon-cloudwatch-agent-auto-reloader.conf:
-              content: !Sub |
-                [cfn-auto-reloader-hook]
-                triggers=post.update
-                path=Resources.EC2Instance.Metadata.AWS::CloudFormation::Init.02_config-amazon-cloudwatch-agent
-                action=cfn-init.exe -v --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region} --configsets UpdateEnvironment
-        01_CfnHup_service:
-          services:
-            windows:
-              cfn-hup:
-                enabled: "true"
-                ensureRunning: "true"
-                files:
-                  - c:\cfn\cfn-hup.conf
-                  - c:\cfn\hooks.d\cfn-auto-reloader.conf
-
-        # Definition of json configuration of AmazonCloudWatchAgent, you can change the configuration below.
-        02_config-amazon-cloudwatch-agent:
-          files:
-            C:\ProgramData\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.json:
-              content: |
-                {
-                  "metrics": {
-                    "append_dimensions": {
-                      "AutoScalingGroupName": "${!aws:AutoScalingGroupName}",
-                      "ImageId": "${!aws:ImageId}",
-                      "InstanceId": "${!aws:InstanceId}",
-                      "InstanceType": "${!aws:InstanceType}"
-                    },
-                    "metrics_collected": {
-                      "cpu": {
-                        "resources": [
-                          "*"
-                        ],
-                        "measurement": [
-                          {"name": "cpu_usage_idle", "rename": "CPU_USAGE_IDLE", "unit": "Percent"},
-                          {"name": "cpu_usage_nice", "unit": "Percent"},
-                          "cpu_usage_guest"
-                        ],
-                        "totalcpu": true,
-                        "metrics_collection_interval": 10
-                      },
-                      "disk": {
-                        "resources": [
-                          "/",
-                          "/tmp"
-                        ],
-                        "measurement": [
-                          {"name": "free", "rename": "DISK_FREE", "unit": "Gigabytes"},
-                          "total",
-                          "used",
-                          "used_percent"
-                        ],
-                        "ignore_file_system_types": [
-                          "sysfs", "devtmpfs", "overlay", "squashfs", "tmpfs"
-                        ],
-                        "metrics_collection_interval": 60
-                        }
-                      },
-                      "diskio": {
-                        "resources": [
-                          "*"
-                        ],
-                        "measurement": [
-                          "reads",
-                          "writes",
-                          "read_time",
-                          "write_time",
-                          "io_time"
-                        ],
-                        "metrics_collection_interval": 60
-                      },
-                      "swap": {
-                        "measurement": [
-                          "swap_used",
-                          "swap_free",
-                          "swap_used_percent"
-                        ]
-                      },
-                      "mem": {
-                        "measurement": [
-                          "mem_used",
-                          "mem_cached",
-                          "mem_total",
-                          "mem_used_percent"
-                        ],
-                        "metrics_collection_interval": 1
-                      },
-                      "net": {
-                        "resources": [
-                          "eth0"
-                        ],
-                        "measurement": [
-                          "bytes_sent",
-                          "bytes_recv",
-                          "drop_in",
-                          "drop_out"
-                        ]
-                      },
-                      "netstat": {
-                        "measurement": [
-                          "tcp_established",
-                          "tcp_syn_sent",
-                          "tcp_close"
-                        ],
-                        "metrics_collection_interval": 60
-                      },
-                      "processes": {
-                        "measurement": [
-                          "running",
-                          "sleeping",
-                          "dead"
-                        ]
-                      }
-                    }
-                    }
-                  }
-                }
-
-        # Invoke amazon-cloudwatch-agent-ctl to restart the AmazonCloudWatchAgent.
-        03_restart_amazon-cloudwatch-agent:
-          commands:
-            01_stop_service:
-              command: powershell -Command "C:\\'Program Files'\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl.ps1 -a stop"
-            02_start_service:
-              command: powershell -Command "C:\\'Program Files'\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent-ctl.ps1 -a fetch-config -m ec2 -c file:C:\\ProgramData\\Amazon\\AmazonCloudWatchAgent\\amazon-cloudwatch-agent.json -s"
-
-        04_download_crowdstrike_config_script:            
-          commands:
-            downloadscript:
-              command: !Sub |
-                powershell -Command "read-s3object -BucketName ${bucketname} -Key scripts/CROWDSTRIKE.EXE -File C:\\Scripts\\CROWDSTRIKE.EXE"
-        05_download_rapid7_config_script:            
-          commands:
-            downloadscript:
-              command: !Sub |
-                powershell -Command "read-s3object -BucketName ${bucketname} -Key scripts/RAPID7_X86_64.MSI -File C:\\Scripts\\RAPID7_X86_64.MSI"
-        06_download_syxsense_config_script:            
-          commands:
-            downloadscript:
-              command: !Sub |
-                powershell -Command "read-s3object -BucketName ${bucketname} -Key scripts/SYXSENSE_RESPONDERSETUP461.MSI -File C:\\Scripts\\SYXSENSE_RESPONDERSETUP461.MSI"
-        # 07_run_crowdstrike_config_script:            
-        #   commands:
-        #     runscript: 
-        #       command: !Sub |
-        #         powershell -Command "C:\\Scripts\\CROWDSTRIKE.EXE -bucketname ${CrowdStrikebucketname} -SecretName ${CrowdStrikeSecretName} -Debug ${CrowdStrikeDebug}"
-    Properties:
-      LaunchTemplateName: NGL-AAE2-IP-VSA01AutoScaling
-      LaunchTemplateData:
-        TagSpecifications:
-          - ResourceType: instance
-            Tags:
-              - Key: Name
-                Value: !Ref 'Ec2InstanceTagName'
-              - Key: Project
-                Value: infrastructure-tools
-              - Key: Backup
-                Value: true
-              - Key: Service-Name
-                Value: infrastructure
-              - Key: Environment
-                Value: !Ref EnvironmentScpTag
-              - Key: OS
-                Value: !Ref OSType
-          - ResourceType: volume
-            Tags:
-              - Key: Name
-                Value: !Ref 'Ec2InstanceTagName'
-              - Key: Backup
-                Value: true
-              - Key: Project
-                Value: infrastructure-tools
-              - Key: Environment
-                Value: !Ref EnvironmentScpTag
-              - Key: Service-Name
-                Value: infrastructure
-        MetadataOptions:
-          HttpTokens: required
-          HttpEndpoint: enabled
-          HttpPutResponseHopLimit: 1
-        UserData: 
-          Fn::Sub: |-
-            <script>
-            mkdir C:\Downloads\Amazon\AmazonCloudWatchAgent
-            powershell -Command "(New-Object Net.WebClient).DownloadFile('https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi','C:\Downloads\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.msi')"
-            C:\Downloads\Amazon\AmazonCloudWatchAgent\amazon-cloudwatch-agent.msi
-            cfn-init.exe -v --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region} --configsets default
-            cfn-signal.exe -e %errorlevel% --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region}
+INSTALLER_URL='https://<your-s3-bucket-name>.s3.amazonaws.com/path/to/crowdstrike_agent.rpm'
+LOCAL_PATH='/tmp/crowdstrike/crowdstrike_agent.rpm'
+curl -o $LOCAL_PATH $INSTALLER_URL
+yum install -y $LOCAL_PATH
+/opt/CrowdStrike/falconctl -s --cid=<YourCID>
+systemctl start falcon-sensor
+systemctl enable falcon-sensor
+rm -rf /tmp/crowdstrike
 
 
 
+{
+  "commands": [
+    "#!/bin/bash",
+    "# Create a temporary directory for the installer if it doesn't exist",
+    "mkdir -p /tmp/crowdstrike",
+
+    "# Define the URL for the CrowdStrike installer (S3 bucket location)",
+    "INSTALLER_URL='https://<your-s3-bucket-name>.s3.amazonaws.com/path/to/crowdstrike_agent.deb'",
+
+    "# Define the local path to save the installer",
+    "LOCAL_PATH='/tmp/crowdstrike/crowdstrike_agent.deb'",
+
+    "# Download the CrowdStrike installer from S3",
+    "curl -o $LOCAL_PATH $INSTALLER_URL",
+
+    "# Install the CrowdStrike agent (replace <YourCID> with the actual CrowdStrike CID)",
+    "dpkg -i $LOCAL_PATH",
+
+    "# Configure the agent with your CID (replace <YourCID> with your actual CrowdStrike Customer ID)",
+    "/opt/CrowdStrike/falconctl -s --cid=<YourCID>",
+
+    "# Start the CrowdStrike service",
+    "systemctl start falcon-sensor",
+
+    "# Enable the CrowdStrike service to start at boot",
+    "systemctl enable falcon-sensor",
+
+    "# Clean up the temporary directory",
+    "rm -rf /tmp/crowdstrike"
+  ]
+}
 
 
 
-Resource handler returned message: "Invalid BASE64 encoding of user data. (Service: AmazonEC2; Status Code: 400; Error Code: InvalidUserData.Malformed; Request ID: 72fb4aea-2a26-4021-b358-db524b962d8c; Proxy: null)" (RequestToken: 6f0c9f89-3d2f-91d3-117a-19c0ef3a4ef6, HandlerErrorCode: GeneralServiceException)
-Properties validation failed for resource Ec2InstanceLaunchTemplateTest with message: [#: extraneous key [UserData] is not permitted]
+You’re absolutely right — the CrowdStrike Customer ID (CID) is a crucial part of installing the CrowdStrike agent, as it associates the agent with your organization’s CrowdStrike tenant. Here’s an updated script that includes the CID for Linux systems.
+SSM Script for Installing CrowdStrike Agent on Linux (with CID)
+
+{
+  "commands": [
+    "#!/bin/bash",
+    "# Create a temporary directory for the installer if it doesn't exist",
+    "mkdir -p /tmp/crowdstrike",
+
+    "# Define the URL for the CrowdStrike installer (S3 bucket location)",
+    "INSTALLER_URL='https://<your-s3-bucket-name>.s3.amazonaws.com/path/to/crowdstrike_agent.deb'",
+
+    "# Define the local path to save the installer",
+    "LOCAL_PATH='/tmp/crowdstrike/crowdstrike_agent.deb'",
+
+    "# Download the CrowdStrike installer from S3",
+    "curl -o $LOCAL_PATH $INSTALLER_URL",
+
+    "# Install the CrowdStrike agent (replace <YourCID> with the actual CrowdStrike CID)",
+    "dpkg -i $LOCAL_PATH",
+
+    "# Configure the agent with your CID (replace <YourCID> with your actual CrowdStrike Customer ID)",
+    "/opt/CrowdStrike/falconctl -s --cid=<YourCID>",
+
+    "# Start the CrowdStrike service",
+    "systemctl start falcon-sensor",
+
+    "# Enable the CrowdStrike service to start at boot",
+    "systemctl enable falcon-sensor",
+
+    "# Clean up the temporary directory",
+    "rm -rf /tmp/crowdstrike"
+  ]
+}
+
+Explanation of Key Lines
+
+    CID Configuration:
+        The following line is used to associate the agent with your CrowdStrike organization:
+
+    /opt/CrowdStrike/falconctl -s --cid=<YourCID>
+
+    Replace <YourCID> with your actual CrowdStrike Customer ID. Your IT or security team should provide this.
+
+Starting and Enabling the Service:
+
+    Once the agent is installed, the falcon-sensor service must be started and enabled to ensure it runs on boot:
+
+        systemctl start falcon-sensor
+        systemctl enable falcon-sensor
+
+    Temporary Directory:
+        The installer is downloaded to /tmp/crowdstrike and cleaned up after installation to keep the instance tidy.
+
+Steps to Deploy with AWS SSM
+
+    Upload the .deb Package to S3:
+        Store the .deb file securely in a private S3 bucket.
+
+    Attach the IAM Role to the Instance:
+        Ensure the IAM role attached to the EC2 instance has s3:GetObject permissions for the bucket.
+
+    Run the Command:
+        Use the AWS Systems Manager > Run Command console.
+        Select the document AWS-RunShellScript.
+        Paste the updated script into the command parameters section.
+
+For RPM-Based Systems
+
+If you're using an RPM-based system (e.g., Amazon Linux, Red Hat, CentOS), replace the .deb file with the .rpm package and use yum install:
