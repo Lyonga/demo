@@ -69,7 +69,9 @@
         "sns:Unsubscribe",
         "sns:Publish",
         "sns:GetTopicAttributes",
-        "sns:SetTopicAttributes"
+        "sns:SetTopicAttributes",
+        "sns:TagResource",
+        "sns:UntagResource"
       ],
       "Resource": "*"
     },
@@ -88,7 +90,9 @@
         "ssm:GetDocument",
         "ssm:ListDocuments",
         "ssm:UpdateInstanceInformation",
-        "ssm:PutInventory"
+        "ssm:PutInventory",
+        "ssm:AddTagsToResource",
+        "ssm:RemoveTagsFromResource"
       ],
       "Resource": "*"
     },
@@ -119,7 +123,24 @@
         "iam:GetPolicyVersion",
         "iam:CreatePolicyVersion",
         "iam:DeletePolicyVersion",
-        "iam:PassRole"
+        "iam:PassRole",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:TagPolicy",
+        "iam:UntagPolicy"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "TaggingResources",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateTags",
+        "ec2:DeleteTags",
+        "autoscaling:TagResource",
+        "autoscaling:UntagResource",
+        "elasticfilesystem:TagResource",
+        "elasticfilesystem:UntagResource"
       ],
       "Resource": "*"
     }
