@@ -1,13 +1,1 @@
-Resource handler returned message: "Encountered a permissions error performing a tagging operation, please add required tag permissions. See https://repost.aws/knowledge-center/cloudformation-tagging-permission-error for how to resolve. Resource handler returned message: "You are not authorized to perform this operation. User: arn:aws:sts::543756193223:assumed-role/AWSReservedSSO_AWSAdministratorAccess_12e80943b90a4196/clyonga@nglic.com is not authorized to perform: ec2:RunInstances on resource: arn:aws:ec2:us-east-2:543756193223:instance/* with an explicit deny in a service control policy. (Service: Ec2, Status Code: 403, Request ID: fad62b04-9061-411c-9352-1faaa5ed0194)"" (RequestToken: 0196053a-f760-4785-cdc4-79603bd08345, HandlerErrorCode: UnauthorizedTaggingOperation)
-
-
-
-
-
-
-Resource handler returned message: "You are not authorized to perform this operation. User: arn:aws:sts::543756193223:assumed-role/AWSReservedSSO_AWSAdministratorAccess_12e80943b90a4196/clyonga@nglic.com is not authorized to perform: ec2:RunInstances on resource: arn:aws:ec2:us-east-2:543756193223:instance/* with an explicit deny in a service control policy. (Service: Ec2, Status Code: 403, Request ID: 19446803-7390-472a-9d20-7ec53b8992d8)" (RequestToken: 1ba72974-57d7-665f-e840-8d550d234311, HandlerErrorCode: AccessDenied)
-
-
-
-
-Properties validation failed for resource EC2Instance with message: [#: extraneous key [MetadataOptions] is not permitted]
+ Error: creating SSM Document (NglSecurityAgentInstallationDocument): operation error SSM: CreateDocument, https response error StatusCode: 400, RequestID: 04d96c00-8e5e-4136-abb1-9545cdea16ab, InvalidDocumentContent: Wrong default value for a "String" parameters, got {"arn":"arn:aws:ssm:us-east-2:384352530920:parameter/ngl/crowdstrike/FalconClientID","id":"/ngl/crowdstrike/FalconClientID","insecure_value":"K1Lu2d0bY3zlCTMenx8iwH6jJI9N54W7PaEcDSrp","name":"/ngl/crowdstrike/FalconClientID","type":"String","value":"K1Lu2d0bY3zlCTMenx8iwH6jJI9N54W7PaEcDSrp","version":2,"with_decryption":true}. at Line: 1, Column: 2383
