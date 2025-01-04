@@ -45,3 +45,70 @@ resource "aws_ssm_document" "install_agents" {
     ]
   })
 }
+
+
+
+
+resource "aws_instance" "generic" {
+  ami               = aws_launch_template.ec2_instance_launch_template.image_id
+  instance_type     = aws_launch_template.ec2_instance_launch_template.instance_type
+  subnet_id         = var.vpc_ec2_subnet1
+  key_name          = aws_launch_template.ec2_instance_launch_template.key_name
+
+  # Attach the same security group that allows WinRM
+  vpc_security_group_ids = [
+    aws_security_group.winrm_sg.id
+  ]
+
+  # If you're using a launch template, reference it here
+  launch_template {
+    id      = aws_launch_template.ec2_instance_launch_template.id
+    version = aws_launch_template.ec2_instance_launch_template.latest_version
+  }
+
+  # We need to connect via WinRM
+  connection {
+    type     = "winrm"
+    host     = self.public_ip  # or self.private_ip if your TF runner is in the same VPC
+    user     = "Administrator" # or your admin username
+    password = var.win_password # best practice: from a secure source
+  }
+
+  # The actual provisioning steps
+  provisioner "remote-exec" {
+    inline = [
+      # 1) Make a temp directory, download AWS CLI MSI
+      "powershell.exe mkdir C:\\Temp -ErrorAction SilentlyContinue",
+      "powershell.exe Invoke-WebRequest -Uri https://awscli.amazonaws.com/AWSCLIV2.msi -OutFile C:\\Temp\\AWSCLIV2.msi",
+
+      # 2) Install AWS CLI silently
+      "powershell.exe Start-Process msiexec -ArgumentList '/i C:\\Temp\\AWSCLIV2.msi /quiet /norestart' -Wait",
+
+      # 3) Add AWS CLI path to environment variable (optional)
+      "powershell.exe $awsCliPath = 'C:\\Program Files\\Amazon\\AWSCLIV2'; [Environment]::SetEnvironmentVariable('PATH', $env:PATH + ';' + $awsCliPath, [EnvironmentVariableTarget]::Machine)",
+
+      # 4) Download + Install CrowdStrike from S3 (using the newly installed AWS CLI)
+      #    Make sure your instance has IAM perms for s3:GetObject, or use presigned URL
+      "powershell.exe mkdir C:\\Scripts -ErrorAction SilentlyContinue",
+      "powershell.exe aws s3 cp s3://my-bucket/FalconSensor.exe C:\\Scripts\\FalconSensor.exe",
+      "powershell.exe Start-Process C:\\Scripts\\FalconSensor.exe -Wait",
+
+      # If you need a CID argument:
+      # "powershell.exe Start-Process C:\\Scripts\\FalconSensor.exe -ArgumentList '--cid=ABCD1234' -Wait",
+
+      # 5) Download + Install Rapid7 agent from S3
+      "powershell.exe aws s3 cp s3://my-bucket/RAPID7_X86_64.MSI C:\\Scripts\\RAPID7_X86_64.MSI",
+      "powershell.exe Start-Process msiexec -ArgumentList '/i C:\\Scripts\\RAPID7_X86_64.MSI /quiet /norestart' -Wait",
+
+      # 6) Download + Install Duo from S3
+      "powershell.exe aws s3 cp s3://my-bucket/DUOWINDOWSLO6OG4.MSI C:\\Scripts\\DUOWINDOWSLO6OG4.MSI",
+      "powershell.exe Start-Process msiexec -ArgumentList '/i C:\\Scripts\\DUOWINDOWSLO6OG4.MSI /quiet /norestart' -Wait",
+    ]
+  }
+
+  tags = {
+    Name       = "win-instance-with-provisioners"
+    DomainJoin = "true"
+  }
+}
+
