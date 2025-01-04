@@ -112,3 +112,83 @@ resource "aws_instance" "generic" {
   }
 }
 
+
+
+
+
+
+
+
+resource "aws_launch_template" "windows_lt" {
+  name                  = "windows-lt"
+  image_id              = var.windows_ami
+  instance_type         = var.instance_type
+  # additional fields as needed (key_name, etc.)
+
+  # This user_data uses PowerShell to:
+  # 1) Download & install AWS CLI
+  # 2) Use the newly installed AWS CLI to copy .exe/.msi installers from S3
+  # 3) Install CrowdStrike, Rapid7, Duo
+  user_data = base64encode(<<-POWERSHELL
+    <powershell>
+
+    # --- 1) Download & Install AWS CLI (Windows) ---
+    Write-Host "Downloading AWS CLI .msi..."
+    New-Item -ItemType Directory -Path C:\\Temp -Force | Out-Null
+    Invoke-WebRequest -Uri "https://awscli.amazonaws.com/AWSCLIV2.msi" -OutFile "C:\\Temp\\AWSCLIV2.msi"
+    Write-Host "Installing AWS CLI..."
+    Start-Process msiexec -ArgumentList "/i C:\\Temp\\AWSCLIV2.msi /quiet /norestart" -Wait
+
+    # Optionally update PATH environment so AWS CLI is immediately usable in the same session
+    $awsCliPath = "C:\\Program Files\\Amazon\\AWSCLIV2"
+    [Environment]::SetEnvironmentVariable('PATH', $env:PATH + ';' + $awsCliPath, [EnvironmentVariableTarget]::Machine)
+
+    # --- 2) Install CrowdStrike (Example: FalconSensor.exe) ---
+    Write-Host "Installing CrowdStrike sensor..."
+    New-Item -ItemType Directory -Path "C:\\Scripts" -Force | Out-Null
+    aws s3 cp s3://my-bucket/FalconSensor.exe C:\\Scripts\\FalconSensor.exe
+    # If you need a CID token, add --cid=XYZ in the argument list:
+    Start-Process "C:\\Scripts\\FalconSensor.exe" -Wait
+    # Example with argument:
+    # Start-Process "C:\\Scripts\\FalconSensor.exe" -ArgumentList "--cid=ABCD1234" -Wait
+
+    # --- 3) Install Rapid7 (Example: RAPID7_X86_64.MSI) ---
+    Write-Host "Installing Rapid7..."
+    aws s3 cp s3://my-bucket/RAPID7_X86_64.MSI C:\\Scripts\\RAPID7_X86_64.MSI
+    Start-Process msiexec -ArgumentList "/i C:\\Scripts\\RAPID7_X86_64.MSI /quiet /norestart" -Wait
+
+    # --- 4) Install Duo (Example: DUOWINDOWSLO6OG4.MSI) ---
+    Write-Host "Installing Duo agent..."
+    aws s3 cp s3://my-bucket/DUOWINDOWSLO6OG4.MSI C:\\Scripts\\DUOWINDOWSLO6OG4.MSI
+    Start-Process msiexec -ArgumentList "/i C:\\Scripts\\DUOWINDOWSLO6OG4.MSI /quiet /norestart" -Wait
+
+    Write-Host "All agent installations complete!"
+
+    # Add any additional setup or logging
+    Start-Sleep -Seconds 5
+    </powershell>
+  POWERSHELL
+  )
+
+  # Example block device mapping
+  block_device_mappings {
+    device_name = "/dev/sda1"
+    ebs {
+      volume_size           = 30
+      volume_type           = "gp3"
+      delete_on_termination = true
+    }
+  }
+
+  # Tag specifications if desired
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name = "WindowsLT-with-AgentInstalls"
+    }
+  }
+
+  # metadata_options, etc. as needed
+}
+
+
