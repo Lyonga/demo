@@ -24,3 +24,59 @@ At C:\\ProgramData\\Amazon\\SSM\\InstanceData\\i-09e33df840df248f7\\document\\or
  
 
 ","CommandId":"5d57d3a0-c943-4f5e-979b-7c2640fe563d"}
+########################################################
+
+
+Downloading CrowdStrike installer...
+Installing CrowdStrike...
+{"Status":"Success","ResponseCode":0,"Output":"Downloading CrowdStrike installer...
+Installing CrowdStrike...
+
+----------ERROR-------
+Invoke-RestMethod : The remote server returned an error: (404) Not Found.
+
+At C:\\ProgramData\\Amazon\\SSM\\InstanceData\\i-04ae36bba750553d8\\document\\orchestration\\0a84507a-35ea-456a-8240-1a605f9f39
+
+99\\awsrunPowerShellScript\\0.awsrunPowerShellScript\\_script.ps1:6 char:1
+
++ Invoke-RestMethod -Uri \"https://$s3Bucket.s3.us-east-2.amazonaws.com/ ...
+
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-RestMethod], WebExc 
+
+   eption
+
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
+
+ 
+
+Start-Process : This command cannot be run due to the error: The system cannot find the file specified.
+
+At C:\\ProgramData\\Amazon\\SSM\\InstanceData\\i-04ae36bba750553d8\\document\\orchestration\\0a84507a-35ea-456a-8240-1a605f9f39
+
+99\\awsrunPowerShellScript\\0.awsrunPowerShellScript\\_script.ps1:8 char:1
+
++ Start-Process $localPath -Wait
+
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------ERROR-------
+Invoke-RestMethod : The remote server returned an error: (404) Not Found.
+At C:\ProgramData\Amazon\SSM\InstanceData\i-04ae36bba750553d8\document\orchestration\0a84507a-35ea-456a-8240-1a605f9f39
+99\awsrunPowerShellScript\0.awsrunPowerShellScript\_script.ps1:6 char:1
++ Invoke-RestMethod -Uri "https://$s3Bucket.s3.us-east-2.amazonaws.com/ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-RestMethod], WebExc 
+   eption
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
+ 
+Start-Process : This command cannot be run due to the error: The system cannot find the file specified.
+At C:\ProgramData\Amazon\SSM\InstanceData\i-04ae36bba750553d8\document\orchestration\0a84507a-35ea-456a-8240-1a605f9f39
+99\awsrunPowerShellScript\0.awsrunPowerShellScript\_script.ps1:8 char:1
++ Start-Process $localPath -Wait
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Start-Process], InvalidOperationException
+    + FullyQualifiedErrorId : InvalidOperationException,Microsoft.PowerShell.Commands.StartProcessCommand
+ 
+
+
