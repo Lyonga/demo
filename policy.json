@@ -1,3 +1,1 @@
-cmd.exe /C c:\run_once\CROWDSTRIKE.EXE /install /quiet /norestart CID=90A3F76CCAB1486B926DAB1245654232455-56
 
-cmd.exe /C msiexec /i c:\run_once\RAPID7_X86_64.MSI CONFIGCHOICE=LOCAL CUSTOMCONFIGPATH="C:\run_once\" /qn
