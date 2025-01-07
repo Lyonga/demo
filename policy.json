@@ -1,1 +1,20 @@
-Directory: C:\ Mode LastWriteTime Length Name ---- ------------- ------ ---- d----- 1/6/2025 7:44 PM Scripts ----------ERROR------- fatal error: An error occurred (404) when calling the HeadObject operation: Key "agents/CROWDSTRIKE.EXE" does not exist
+Crowdstrike:
+cmd.exe /C c:\run_once\CROWDSTRIKE.EXE /install /quiet /norestart CID=90A3F76CCAB1486B926DAB2CA88CF712-29
+
+Rapid7:
+cmd.exe /C msiexec /i c:\run_once\RAPID7_X86_64.MSI CONFIGCHOICE=LOCAL CUSTOMCONFIGPATH="C:\run_once\" /qn
+
+Duo:
+cmd.exe /C msiexec /i c:\run_once\DUOWINDOWSLOGON64.msi IKEY="DIGAQFXPG4Q2GQJJINA2" SKEY="K7FIgmjChMmBa6G6IJrJvDGc4e6wNZNf9aKGxCPr" HOST="api-550c2cbe.duosecurity.com" AUTOPUSH="#0" FAILOPEN="#0" SMARTCARD="#0" RDPONLY="#0" USERNAMEFORMAT="0" /passive
+
+
+DocumentName: AWS-RunPowerShellScript
+      InstanceIds: '{{ InstanceIds }}'
+      Parameters:
+        commands:
+          - New-Item -ItemType Directory -Force -Path C:\Scripts
+          - $installer = "C:\Scripts\CROWDSTRIKE.EXE"
+          - $path = "C:\Scripts"
+          - $Args = "/install /quiet /norestart CID=$CID"
+          - aws s3 cp s3://ngl-ec2-terraform-backend-workloaddev/agents/CROWDSTRIKE.EXE $path
+          - Start-Process -FilePath $installer -ArgumentList $Args -Wait
