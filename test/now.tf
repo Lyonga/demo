@@ -1,10 +1,9 @@
-resource "aws_ssm_document" "install_agents" {
-  name          = "NglSecurityAgentInstallationDocument"
+resource "aws_ssm_document" "install_crowdstrike" {
+  name          = "NglCSDUORAgentInstallationDocument"
   document_type = "Automation"
   tags =          var.tags
   content = jsonencode({
     schemaVersion = "0.3"
-    #schemaVersion = "2.2"
     description   = "Install security agents on EC2 instances."
     parameters    = {
       InstanceIds  = { type = "StringList", description = "List of EC2 Instance IDs." }
@@ -14,83 +13,61 @@ resource "aws_ssm_document" "install_agents" {
     }
     mainSteps = [
       {
-        "name": "DownloadAWSCLI",
-        "action": "aws:runCommand",
-        "inputs": {
-          "DocumentName": "AWS-RunPowerShellScript",
-          "InstanceIds": "{{ InstanceIds }}",
-          "Parameters": {
-            "commands": [
-              "$path = 'C:\\Temp\\AWSCLIV2.msi'",
-              "$url  = 'https://awscli.amazonaws.com/AWSCLIV2.msi'",
-              "New-Item -ItemType Directory -Path (Split-Path $path) -Force | Out-Null",
-              "Invoke-WebRequest -Uri $url -OutFile $path"
-            ]
-          }
-        }
-      },
-      {
-        "name": "InstallAWSCLI",
-        "action": "aws:runCommand",
-        "inputs": {
-          "DocumentName": "AWS-RunPowerShellScript",
-          "InstanceIds": "{{ InstanceIds }}",
-          "Parameters": {
-            "commands": [
-              "Start-Process msiexec -ArgumentList \"/i C:\\Temp\\AWSCLIV2.msi /quiet /norestart\" -Wait",
-              "$awsCliPath = 'C:\\Program Files\\Amazon\\AWSCLIV2'",
-              "[Environment]::SetEnvironmentVariable('PATH', $env:PATH + ';' + $awsCliPath, [EnvironmentVariableTarget]::Machine)"
-            ]
-          }
-        }
-      },
-      {
-        name     = "InstallCrowdStrike"
+        name     = "DownloadAndInstallCrowdStrike"
         action   = "aws:runCommand"
         inputs   = {
           DocumentName = "AWS-RunPowerShellScript"
           InstanceIds  = "{{ InstanceIds }}"
           Parameters   = {
             commands = [
-              "New-Item -ItemType Directory -Force -Path C:\\Scripts",
-              "$installer = \"C:\\Scripts\\CROWDSTRIKE.EXE\"",
-              "$argumentList = /install /quiet /norestart CID=$CID",
-              "aws s3 cp s3://${var.bucket_name}/agents/CROWDSTRIKE.EXE $installer",
-              #"Start-Process -FilePath $installer -ArgumentList '/install', '/quiet', '/norestart',  'CID={{ CrowdStrikeCID }}' -Wait" 
-              "Start-Process -FilePath $installer -ArgumentList $argumentList -Wait",
-              "Write-Host 'Successfully installed'"
+              "$s3Bucket = '{{ S3BucketName }}'",
+              "$s3Key = 'agents/CROWDSTRIKE.EXE'",
+              "$localPath = 'C:\\Scripts\\FalconSensor_Windows.exe'",
+              "New-Item -ItemType Directory -Path (Split-Path $localPath) -Force | Out-Null",
+              "Write-Host 'Downloading CrowdStrike installer...'",
+              "Invoke-RestMethod -Uri \"https://$s3Bucket.s3.{{ Region }}.amazonaws.com/$s3Key\" -OutFile $localPath",
+              "Write-Host 'Installing CrowdStrike...'",
+              "Start-Process $localPath -Wait"
             ]
           }
         }
       },
       {
-        name     = "InstallRapid7"
+        name     = "DownloadAndInstallRapid7"
         action   = "aws:runCommand"
         inputs   = {
           DocumentName = "AWS-RunPowerShellScript"
           InstanceIds  = "{{ InstanceIds }}"
           Parameters   = {
             commands = [
-              "$installer = \"C:\\Scripts\\RAPID7_X86_64.MSI\"",
-              "aws s3 cp s3://${var.bucket_name}/agents/RAPID7_X86_64.MSI $installer",
-              "Start-Process $installer -Wait"
+              "$s3Bucket = '{{ S3BucketName }}'",
+              "$s3Key = 'agents/RAPID7_X86_64.MSI'",
+              "$localPath = 'C:\\Scripts\\RAPID7_X86_64.MSI'",
+              "New-Item -ItemType Directory -Path (Split-Path $localPath) -Force | Out-Null",
+              "Write-Host 'Downloading Rapid7 installer...'",
+              "Invoke-RestMethod -Uri \"https://$s3Bucket.s3.{{ Region }}.amazonaws.com/$s3Key\" -OutFile $localPath",
+              "Write-Host 'Installing Rapid7...'",
+              "Start-Process msiexec -ArgumentList \"/i $localPath /quiet /norestart\" -Wait"
             ]
           }
         }
       },
       {
-        name     = "InstallDuo"
+        name     = "DownloadAndInstallDuo"
         action   = "aws:runCommand"
         inputs   = {
           DocumentName = "AWS-RunPowerShellScript"
           InstanceIds  = "{{ InstanceIds }}"
           Parameters   = {
             commands = [
-              "$installer = \"C:\\Scripts\\DUOWINDOWSLO6OG4.MSI\"",
-              #"aws s3 cp s3://${var.bucket_name}/agents/DUOWINDOWSLO6OG4.MSI $installer",
-              "aws s3 cp s3://ngl-ec2-terraform-backend-workloaddev/agents/DUOWINDOWSLO6OG4.MSI $installer",
-              "Start-Process msiexec -ArgumentList \"/i $installer /quiet /norestart\" -Wait"
-              #"Start-Process $installer -ArgumentList \"--cid={{ CrowdStrikeCID }}\" -Wait"
+              "$s3Bucket = '{{ S3BucketName }}'",
+              "$s3Key = 'agents/DUOWINDOWSLO6OG4.MSI'",
+              "$localPath = 'C:\\Scripts\\DUOWINDOWSLO6OG4.MSI'",
+              "New-Item -ItemType Directory -Path (Split-Path $localPath) -Force | Out-Null",
+              "Write-Host 'Downloading Duo installer...'",
+              "Invoke-RestMethod -Uri \"https://$s3Bucket.s3.{{ Region }}.amazonaws.com/$s3Key\" -OutFile $localPath",
+              "Write-Host 'Installing Duo...'",
+              "Start-Process msiexec -ArgumentList \"/i $localPath /quiet /norestart\" -Wait"
             ]
           }
         }
