@@ -4,7 +4,19 @@ Output
 ----------ERROR------- fatal error: An error occurred (404) when calling the HeadObject operation: Key "agents/CROWDSTRIKE.EXE" does not exist Start-Process : This command cannot be run due to the error: The system cannot find the file specified. At C:\ProgramData\Amazon\SSM\InstanceData\i-09e33df840df248f7\document\orchestration\5d57d3a0-c943-4f5e-979b-7c2640fe56 3d\awsrunPowerShellScript\0.awsrunPowerShellScript\_script.ps1:3 char:1 + Start-Process $installer -Wait + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ + CategoryInfo : InvalidOperation: (:) [Start-Process], InvalidOperationException + FullyQualifiedErrorId : InvalidOperationException,Microsoft.PowerShell.Commands.StartProcessCommand
 
 {"Status":"Success","ResponseCode":0,"Output":"
-----------ERROR-------
+----------ERROR-------# Install AWS CLI
+Start-Process msiexec -ArgumentList "/i C:\Temp\AWSCLIV2.msi /quiet /norestart" -Wait
+
+# Update PATH environment variable dynamically
+$awsCliPath = "C:\Program Files\Amazon\AWSCLIV2"
+[Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";$awsCliPath", [EnvironmentVariableTarget]::Machine)
+
+# Refresh the current session's PATH
+$env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", [System.EnvironmentVariableTarget]::Machine)
+
+# Verify AWS CLI installation
+aws --version
+
 fatal error: An error occurred (404) when calling the HeadObject operation: Key \"agents/CROWDSTRIKE.EXE\" does not exist
 
 Start-Process : This command cannot be run due to the error: The system cannot find the file specified.
