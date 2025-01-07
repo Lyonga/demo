@@ -1,2 +1,1 @@
-(assumeRole) We recommend defining an assume role parameter for your runbook. The assume role parameter allows you to run an automation with credentials different from those used for your AWS Management Console session.
-(parameters.Region.description) We recommend providing a description to make it easy for runbook operators to understand how this parameter is used in the runbook
+Output truncated--- ----------ERROR------- download failed: s3://ngl-ec2-terraform-backend-workloaddev/agents/CROWDSTRIKE.EXE to ..\..\Scripts\CROWDSTRIKE.EXE [WinError 5] Access is denied: 'C:\\Scripts\\CROWDSTRIKE.EXE
