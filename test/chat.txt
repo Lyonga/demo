@@ -1,0 +1,67 @@
+commands = [
+  # Create a directory for the agents
+  "mkdir -p /tmp/agents",
+
+  # Define the URL for the Duo agent
+  "duo_url=\"https://${S3BucketName}.s3.{{ Region }}.amazonaws.com/agents/duo-agent.tar.gz\"",
+
+  # Download the Duo agent from S3
+  "curl -o /tmp/agents/duo-agent.tar.gz \"$duo_url\"",
+
+  # Verify the file was downloaded
+  "if [ ! -f /tmp/agents/duo-agent.tar.gz ]; then",
+  "  echo 'Failed to download Duo agent.'",
+  "  exit 1",
+  "fi",
+
+  # Extract the archive
+  "tar -xzf /tmp/agents/duo-agent.tar.gz -C /tmp/agents/",
+
+  # Change directory to the extracted folder
+  "cd /tmp/agents/duo-agent || exit 1",
+
+  # Run the installer (adjust if the extracted archive structure differs)
+  "sudo ./install.sh --ikey={{ DuoIKEY }} --skey={{ DuoSKEY }} --host='api-550c2cbe.duosecurity.com'",
+
+  # Enable and start the Duo agent service
+  "sudo systemctl enable duo-agent",
+  "sudo systemctl start duo-agent",
+
+  # Confirm completion
+  "echo 'Duo installation completed.'"
+]
+
+
+
+
+
+###############
+commands = [
+  # Create a directory for the agents
+  "mkdir -p /tmp/agents",
+
+  # Download the Duo agent from S3 using AWS CLI
+  "aws s3 cp s3://{{ S3BucketName }}/agents/duo-agent.tar.gz /tmp/agents/duo-agent.tar.gz",
+
+  # Verify the file was downloaded
+  "if [ ! -f /tmp/agents/duo-agent.tar.gz ]; then",
+  "  echo 'Failed to download Duo agent.'",
+  "  exit 1",
+  "fi",
+
+  # Extract the archive
+  "tar -xzf /tmp/agents/duo-agent.tar.gz -C /tmp/agents/",
+
+  # Change directory to the extracted folder
+  "cd /tmp/agents/duo-agent || exit 1",
+
+  # Run the installer script
+  "sudo ./install.sh --ikey={{ DuoIKEY }} --skey={{ DuoSKEY }} --host='api-550c2cbe.duosecurity.com'",
+
+  # Enable and start the Duo agent service
+  "sudo systemctl enable duo-agent",
+  "sudo systemctl start duo-agent",
+
+  # Confirm completion
+  "echo 'Duo installation completed.'"
+]
