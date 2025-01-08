@@ -1,13 +1,25 @@
-work on a strategy, that captures monthly cost for teams, compare with previous months to and sends reports to teams or
-from fin ops standpoint, when there is an API call to deploy new resources, run a monthly cost estimate and send to teams if they approve costs 
-EIS items - E.B. and team bring back more specific benefit/risk details back for more specific decision maker routing (and just do the stuff that makes sense and doesn't require risk acceptance)
-
-You had some high level S3 conclusions in your presentation. Those recommendations may help turn the tide in this gradual increase but perhaps having a better understanding of what parts of the s3 
-growth is organic (and where we could expect that to level off based on data retention policies) vs what parts are driven by new functionality, use cases, etc. 
-
-This chart starts to drill down on the ‘others’ bucket from the fully aggregated view which represents the biggest cost increase. This clearly calls out FSx as our single biggest increase over the year so it
- would definitely be an area of focus. I know there is research occurring around VMC storage migration to FSx so I don’t know if the striking increase and 
-acceleration starting in May/Jun is driven by that or other activities and how that may be influence the next steps. The optimizations suggested make sense but I lack context on the root source of the costs.
-
-The final drill down view into the ‘others’ bucket shows that the primary increase is in the ECS for EKS service. I know we started using mulesoft heavily this year so I expect that one is the most obviously
- explainable of the bunch in the form of an architecture decision and has also seemed to largely stabilized since that initial implementation. At that point all other increases are less than 250/month
+│ Error: Invalid reference
+│ 
+│   on ssm-linux.tf line 173, in resource "aws_ssm_document" "install_agents_no_cli_linux":
+│  173:               "crowdstrike_url=\"https://${S3BucketName}.s3.{{ Region }}.amazonaws.com/agents/CrowdStrikeSensor.rpm\"",
+│ 
+│ A reference to a resource type must be followed by at least one attribute
+│ access, specifying the resource name.
+╵
+╷
+│ Error: Invalid reference
+│ 
+│   on ssm-linux.tf line 197, in resource "aws_ssm_document" "install_agents_no_cli_linux":
+│  197:               "rapid7_url=\"https://${S3BucketName}.s3.{{ Region }}.amazonaws.com/agents/rapid7-agent-installer.rpm\"",
+│ 
+│ A reference to a resource type must be followed by at least one attribute
+│ access, specifying the resource name.
+╵
+╷
+│ Error: Invalid reference
+│ 
+│   on ssm-linux.tf line 220, in resource "aws_ssm_document" "install_agents_no_cli_linux":
+│  220:               "duo_url=\"https://${S3BucketName}.s3.{{ Region }}.amazonaws.com/agents/duo-agent.tar.gz\"",
+│ 
+│ A reference to a resource type must be followed by at least one attribute
+│ access, specifying the resource name.
