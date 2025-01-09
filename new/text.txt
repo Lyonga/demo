@@ -1,1 +1,4 @@
 
+[root@ip-10-53-59-29 duo_unix-2.0.4]# ls
+AUTHORS  CONTRIBUTING.md  Makefile.am  README.md   aclocal.m4  build-date  config.h.in  configure.ac      lib        pam_duo    tests
+CHANGES  LICENSES         Makefile.in  acconfig.h  autotools   compat      configure    duo_unix_support  login_duo  sbom.spdx
