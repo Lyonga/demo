@@ -1,4 +1,19 @@
+----------ERROR-------
+fatal error: An error occurred (404) when calling the HeadObject operation: Key "agents/duo-agent-installer.rpm" does not exist
+configure: error: in `/tmp/agents/duo_unix-2.0.4':
+configure: error: no acceptable C compiler found in $PATH
+See `config.log' for more details
+/var/lib/amazon/ssm/i-024985d08cd584072/document/orchestration/cf055967-6be4-4b06-afa0-a0e347f327f1/awsrunShellScript/0.awsrunShellScript/_script.sh: line 9: make: command not found
+sudo: make: command not found
+sudo: /usr/local/sbin/login_duo: command not found
 
-[root@ip-10-53-59-29 duo_unix-2.0.4]# ls
-AUTHORS  CONTRIBUTING.md  Makefile.am  README.md   aclocal.m4  build-date  config.h.in  configure.ac      lib        pam_duo    tests
-CHANGES  LICENSES         Makefile.in  acconfig.h  autotools   compat      configure    duo_unix_support  login_duo  sbom.spdx
+
+----------ERROR-------
+fatal error: An error occurred (404) when calling the HeadObject operation: Key \"agents/duo-agent-installer.rpm\" does not exist
+configure: error: in `/tmp/agents/duo_unix-2.0.4\u0027:
+configure: error: no acceptable C compiler found in $PATH
+See `config.log\u0027 for more details
+/var/lib/amazon/ssm/i-024985d08cd584072/document/orchestration/cf055967-6be4-4b06-afa0-a0e347f327f1/awsrunShellScript/0.awsrunShellScript/_script.sh: line 9: make: command not found
+sudo: make: command not found
+sudo: /usr/local/sbin/login_duo: command not found
+","CommandId":"cf055967-6be4-4b06-afa0-a0e347f327f1"}
