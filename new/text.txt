@@ -16,4 +16,85 @@ See `config.log\u0027 for more details
 /var/lib/amazon/ssm/i-024985d08cd584072/document/orchestration/cf055967-6be4-4b06-afa0-a0e347f327f1/awsrunShellScript/0.awsrunShellScript/_script.sh: line 9: make: command not found
 sudo: make: command not found
 sudo: /usr/local/sbin/login_duo: command not found
-","CommandId":"cf055967-6be4-4b06-afa0-a0e347f327f1"}
+","CommandId":"cf055967-6be4-4b06-afa0-a0e347f327f1"}resource "aws_ssm_document" "install_agents_cli_linux" {
+  name          = "NglSecurityAgentInstallationLinuxCLI"
+  document_type = "Automation"
+  tags          = var.tags
+
+  content = jsonencode({
+    schemaVersion = "0.3",
+    description   = "Install security agents on Linux instances using AWS CLI.",
+    parameters    = {
+      InstanceIds    = { type = "StringList", description = "List of EC2 Instance IDs." }
+      S3BucketName   = { type = "String", description = "S3 bucket containing the installers." }
+      Region         = { type = "String", default = "${data.aws_region.current.name}" }
+      DuoIKEY        = { type = "String", description = "Duo integration key." }
+      DuoSKEY        = { type = "String", description = "Duo secret key." }
+    },
+    mainSteps = [
+      {
+        name     = "InstallDependencies",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "sudo yum update -y",  # Ensure the package list is up-to-date
+              "sudo yum groupinstall -y 'Development Tools'",  # Install gcc, make, and other build tools
+              "sudo yum install -y tar gzip curl"  # Install additional required utilities
+            ]
+          }
+        }
+      },
+      {
+        name     = "DownloadAndInstallDuo",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              # Create a directory for the Duo agent
+              "mkdir -p /tmp/agents",
+
+              # Download the Duo agent tar.gz from S3 using AWS CLI
+              "aws s3 cp s3://{{ S3BucketName }}/agents/duo-agent.tar.gz /tmp/agents/duo-agent.tar.gz",
+
+              # Verify the download was successful
+              "if [ ! -f /tmp/agents/duo-agent.tar.gz ]; then",
+              "  echo 'Failed to download Duo agent.'",
+              "  exit 1",
+              "fi",
+
+              # Extract the tar.gz file
+              "tar -xzf /tmp/agents/duo-agent.tar.gz -C /tmp/agents/",
+
+              # Change directory to the extracted folder
+              "cd /tmp/agents/duo_unix-2.0.4 || exit 1",
+
+              # Run the configure script to prepare for installation
+              "./configure",
+
+              # Compile the source code using Makefile
+              "make",
+
+              # Install the binaries
+              "sudo make install",
+
+              # Configure Duo login binary
+              "sudo /usr/local/sbin/login_duo --ikey={{ DuoIKEY }} --skey={{ DuoSKEY }} --host='api-550c2cbe.duosecurity.com'",
+
+              # Confirm the Duo installation
+              "echo 'Duo installation completed successfully.'"
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
+
+
+
+
