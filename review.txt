@@ -1,62 +1,6 @@
-##########################
-resource "aws_ssm_document" "install_dependencies_linux" {
-  name          = "InstallDependenciesLinux"
-  document_type = "Automation"
-  tags          = var.tags
-
-  content = jsonencode({
-    schemaVersion = "0.3",
-    description   = "Install dependencies on Linux instances.",
-    parameters    = {
-      InstanceIds = { type = "StringList", description = "List of EC2 Instance IDs." }
-      Region      = { type = "String", default = "${data.aws_region.current.name}" }
-    },
-    mainSteps = [
-      {
-        name     = "RemoveConflictingCurl",
-        action   = "aws:runCommand",
-        inputs   = {
-          DocumentName = "AWS-RunShellScript",
-          InstanceIds  = "{{ InstanceIds }}",
-          Parameters   = {
-            commands = [
-              # Remove conflicting curl-minimal and install curl
-              "sudo yum remove -y curl-minimal",
-              "sudo yum install -y curl"
-            ]
-          }
-        }
-      },
-      {
-        name     = "InstallDevelopmentTools",
-        action   = "aws:runCommand",
-        inputs   = {
-          DocumentName = "AWS-RunShellScript",
-          InstanceIds  = "{{ InstanceIds }}",
-          Parameters   = {
-            commands = [
-              # Install Development Tools with skip-broken flag
-              "sudo yum groupinstall -y 'Development Tools' --skip-broken",
-              # Explicitly install missing packages
-              "sudo yum install -y pkgconfig system-rpm-config rcs gcc make tar gzip"
-            ]
-          }
-        }
-      },
-      {
-        name     = "UpgradeSystem",
-        action   = "aws:runCommand",
-        inputs   = {
-          DocumentName = "AWS-RunShellScript",
-          InstanceIds  = "{{ InstanceIds }}",
-          Parameters   = {
-            commands = [
-              # Upgrade the system to the latest release
-              "sudo dnf upgrade --releasever=2023.6.20250107 -y"
-            ]
-          }
-        }
-      }
-    ]
-  })
-}
+sh-5.2$ ls
+Makefile.am  Makefile.in  authlogin_duo.te  pam_duo.8  pam_duo.c  pam_duo.conf  pam_duo_private.c  pam_duo_private.h  pam_extra.c  pam_extra.h
+sh-5.2$ cd ../
+sh-5.2$ cd login_duo/
+sh-5.2$ ls
+Makefile.am  Makefile.in  login_duo.8  login_duo.c  login_duo.conf
