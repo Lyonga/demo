@@ -8,3 +8,15 @@ sh-5.2$ sudo systemctl enable rapid7-agent
 Failed to enable unit: Unit file rapid7-agent.service does not exist.
 sh-5.2$ sudo systemctl start rapid7-agent
 Failed to start rapid7-agent.service: Unit rapid7-agent.service not found.
+
+
+----------ERROR------- make: *** No targets specified and no makefile found. Stop. make: *** No targets specified and no makefile found. Stop. cp: cannot stat '/tmp/agents/duo_unix-2.0.4/login_duo/login_duo': No such file or directory cp: cannot stat '/tmp/agents/duo_unix-2.0.4/pam_duo/.libs/pam_duo.so': No such file or directory chmod: cannot access '/usr/local/sbin/login_duo': No such file or directory chmod: cannot access '/lib/security/pam_duo.so': No such file or directory failed to run commands: exit status 1
+{"Status":"Failed","ResponseCode":1,"Output":"
+----------ERROR-------
+make: *** No targets specified and no makefile found.  Stop.
+make: *** No targets specified and no makefile found.  Stop.
+cp: cannot stat \u0027/tmp/agents/duo_unix-2.0.4/login_duo/login_duo\u0027: No such file or directory
+cp: cannot stat \u0027/tmp/agents/duo_unix-2.0.4/pam_duo/.libs/pam_duo.so\u0027: No such file or directory
+chmod: cannot access \u0027/usr/local/sbin/login_duo\u0027: No such file or directory
+chmod: cannot access \u0027/lib/security/pam_duo.so\u0027: No such file or directory
+failed to run commands: exit status 1","CommandId":"0d0140d7-3e95-4410-944c-b1fa0a31351a"}
