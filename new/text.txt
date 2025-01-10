@@ -1,100 +1,122 @@
+Step fails when it is verifying the command has completed. Command 5d8df468-a83c-42cb-9add-ac4fde58f7e2 returns unexpected invocation result: {Status=[Failed], ResponseCode=[1], Output=[Last metadata expiration check: 21:46:31 ago on Thu Jan 9 15:21:55 2025. Dependencies resolved. Nothing to do. Complete! Last metadata expiration check: 21:46:32 ago on Thu Jan 9 15:21:55 2025. Dependencies resolved. ================================================================================ Package Architecture Version Repository Size ================================================================================ Installing Groups: Development Tools Transaction Summary ================================================================================ Complete! Last metadata expiration check: 21:46:33 ago on Thu Jan 9 15:21:55 2025. Package tar-2:1.34-1.amzn2023.0.4.x86_64 is already installed. Package gzip-1.12-1.amzn...
+
+Command 5d8df468-a83c-42cb-9add-ac4fde58f7e2 returns unexpected invocation result: 
+{Status=[Failed], ResponseCode=[1], Output=[Last metadata expiration check: 21:46:31 ago on Thu Jan  9 15:21:55 2025.
+Dependencies resolved.
+Nothing to do.
+Complete!
+Last metadata expiration check: 21:46:32 ago on Thu Jan  9 15:21:55 2025.
+Dependencies resolved.
+================================================================================
+ Package           Architecture     Version             Repository         Size
+================================================================================
+Installing Groups:
+ Development Tools                                                             
+
+Transaction Summary
+================================================================================
+
+Complete!
+Last metadata expiration check: 21:46:33 ago on Thu Jan  9 15:21:55 2025.
+Package tar-2:1.34-1.amzn2023.0.4.x86_64 is already installed.
+Package gzip-1.12-1.amzn2023.0.1.x86_64 is already installed.
+(try to add '--allowerasing' to command line to replace conflicting packages or '--skip-broken' to skip uninstallable packages)
+
 ----------ERROR-------
-fatal error: An error occurred (404) when calling the HeadObject operation: Key "agents/duo-agent-installer.rpm" does not exist
-configure: error: in `/tmp/agents/duo_unix-2.0.4':
-configure: error: no acceptable C compiler found in $PATH
-See `config.log' for more details
-/var/lib/amazon/ssm/i-024985d08cd584072/document/orchestration/cf055967-6be4-4b06-afa0-a0e347f327f1/awsrunShellScript/0.awsrunShellScript/_script.sh: line 9: make: command not found
-sudo: make: command not found
-sudo: /usr/local/sbin/login_duo: command not found
+================================================================================
+WARNING:
+  A newer release of "Amazon Linux" is available.
 
+  Available Versions:
+
+  Version 2023.6.20250107:
+    Run the following command to upgrade to 2023.6.20250107:
+
+      dnf upgrade --releasever=2023.6.20250107
+
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.6.20250107.html
+
+================================================================================
+No match for group package "system-rpm-config"
+No match for group package "rcs"
+No match for group package "pkgconfig"
+================================================================================
+WARNING:
+  A newer release of "Amazon Linux" is available.
+
+  Available Versions:
+
+  Version 2023.6.20250107:
+    Run the following command to upgrade to 2023.6.20250107:
+
+      dnf upgrade --releasever=2023.6.20250107
+
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.6.20250107.html
+
+================================================================================
+Error: 
+ Problem: problem with installed package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64
+  - package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64 from @System conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.8
+---Error truncated----], OutputPayload=[{"Status":"Failed","ResponseCode":1,"Output":"Last metadata expiration check: 21:46:31 ago on Thu Jan  9 15:21:55 2025.
+Dependencies resolved.
+Nothing to do.
+Complete!
+Last metadata expiration check: 21:46:32 ago on Thu Jan  9 15:21:55 2025.
+Dependencies resolved.
+\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
+ Package           Architecture     Version             Repository         Size
+\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
+Installing Groups:
+ Development Tools                                                             
+
+Transaction Summary
+\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
+
+Complete!
+Last metadata expiration check: 21:46:33 ago on Thu Jan  9 15:21:55 2025.
+Package tar-2:1.34-1.amzn2023.0.4.x86_64 is already installed.
+Package gzip-1.12-1.amzn2023.0.1.x86_64 is already installed.
+(try to add \u0027--allowerasing\u0027 to command line to replace conflicting packages or \u0027--skip-broken\u0027 to skip uninstallable packages)
 
 ----------ERROR-------
-fatal error: An error occurred (404) when calling the HeadObject operation: Key \"agents/duo-agent-installer.rpm\" does not exist
-configure: error: in `/tmp/agents/duo_unix-2.0.4\u0027:
-configure: error: no acceptable C compiler found in $PATH
-See `config.log\u0027 for more details
-/var/lib/amazon/ssm/i-024985d08cd584072/document/orchestration/cf055967-6be4-4b06-afa0-a0e347f327f1/awsrunShellScript/0.awsrunShellScript/_script.sh: line 9: make: command not found
-sudo: make: command not found
-sudo: /usr/local/sbin/login_duo: command not found
-","CommandId":"cf055967-6be4-4b06-afa0-a0e347f327f1"}resource "aws_ssm_document" "install_agents_cli_linux" {
-  name          = "NglSecurityAgentInstallationLinuxCLI"
-  document_type = "Automation"
-  tags          = var.tags
+\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
+WARNING:
+  A newer release of \"Amazon Linux\" is available.
 
-  content = jsonencode({
-    schemaVersion = "0.3",
-    description   = "Install security agents on Linux instances using AWS CLI.",
-    parameters    = {
-      InstanceIds    = { type = "StringList", description = "List of EC2 Instance IDs." }
-      S3BucketName   = { type = "String", description = "S3 bucket containing the installers." }
-      Region         = { type = "String", default = "${data.aws_region.current.name}" }
-      DuoIKEY        = { type = "String", description = "Duo integration key." }
-      DuoSKEY        = { type = "String", description = "Duo secret key." }
-    },
-    mainSteps = [
-      {
-        name     = "InstallDependencies",
-        action   = "aws:runCommand",
-        inputs   = {
-          DocumentName = "AWS-RunShellScript",
-          InstanceIds  = "{{ InstanceIds }}",
-          Parameters   = {
-            commands = [
-              "sudo yum update -y",  # Ensure the package list is up-to-date
-              "sudo yum groupinstall -y 'Development Tools'",  # Install gcc, make, and other build tools
-              "sudo yum install -y tar gzip curl"  # Install additional required utilities
-            ]
-          }
-        }
-      },
-      {
-        name     = "DownloadAndInstallDuo",
-        action   = "aws:runCommand",
-        inputs   = {
-          DocumentName = "AWS-RunShellScript",
-          InstanceIds  = "{{ InstanceIds }}",
-          Parameters   = {
-            commands = [
-              # Create a directory for the Duo agent
-              "mkdir -p /tmp/agents",
+  Available Versions:
 
-              # Download the Duo agent tar.gz from S3 using AWS CLI
-              "aws s3 cp s3://{{ S3BucketName }}/agents/duo-agent.tar.gz /tmp/agents/duo-agent.tar.gz",
+  Version 2023.6.20250107:
+    Run the following command to upgrade to 2023.6.20250107:
 
-              # Verify the download was successful
-              "if [ ! -f /tmp/agents/duo-agent.tar.gz ]; then",
-              "  echo 'Failed to download Duo agent.'",
-              "  exit 1",
-              "fi",
+      dnf upgrade --releasever\u003d2023.6.20250107
 
-              # Extract the tar.gz file
-              "tar -xzf /tmp/agents/duo-agent.tar.gz -C /tmp/agents/",
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.6.20250107.html
 
-              # Change directory to the extracted folder
-              "cd /tmp/agents/duo_unix-2.0.4 || exit 1",
+\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
+No match for group package \"system-rpm-config\"
+No match for group package \"rcs\"
+No match for group package \"pkgconfig\"
+\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
+WARNING:
+  A newer release of \"Amazon Linux\" is available.
 
-              # Run the configure script to prepare for installation
-              "./configure",
+  Available Versions:
 
-              # Compile the source code using Makefile
-              "make",
+  Version 2023.6.20250107:
+    Run the following command to upgrade to 2023.6.20250107:
 
-              # Install the binaries
-              "sudo make install",
+      dnf upgrade --releasever\u003d2023.6.20250107
 
-              # Configure Duo login binary
-              "sudo /usr/local/sbin/login_duo --ikey={{ DuoIKEY }} --skey={{ DuoSKEY }} --host='api-550c2cbe.duosecurity.com'",
+    Release notes:
+     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.6.20250107.html
 
-              # Confirm the Duo installation
-              "echo 'Duo installation completed successfully.'"
-            ]
-          }
-        }
-      }
-    ]
-  })
-}
-
-
-
-
+\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
+Error: 
+ Problem: problem with installed package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64
+  - package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64 from @System conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.8
+---Error truncated----","CommandId":"5d8df468-a83c-42cb-9add-ac4fde58f7e2"}], CommandId=[5d8df468-a83c-42cb-9add-ac4fde58f7e2]}
