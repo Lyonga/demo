@@ -4,3 +4,136 @@ sh-5.2$ cd ../
 sh-5.2$ cd login_duo/
 sh-5.2$ ls
 Makefile.am  Makefile.in  login_duo.8  login_duo.c  login_duo.conf
+
+# Extract the Duo tarball
+tar -xzf /tmp/agents/duo-agent.tar.gz -C /tmp/agents/
+
+# Install dependencies
+sudo dnf groupinstall "Development Tools" -y
+sudo dnf install -y gcc make tar gzip libpam-devel
+
+# Compile pam_duo
+cd /tmp/agents/duo_unix-2.0.4/pam_duo
+make
+
+# Compile login_duo
+cd ../login_duo
+make
+
+# Copy binaries to appropriate directories
+sudo cp ../pam_duo/pam_duo.so /lib/security/
+sudo cp login_duo /usr/local/sbin/
+
+# Set permissions
+sudo chmod 755 /usr/local/sbin/login_duo
+sudo chmod 755 /lib/security/pam_duo.so
+
+# Copy configuration files
+sudo cp ../pam_duo/pam_duo.conf /etc/security/
+sudo chmod 644 /etc/security/pam_duo.conf
+sudo cp login_duo.conf /etc/
+sudo chmod 644 /etc/login_duo.conf
+###########################
+
+
+sudo mkdir -p /etc/duo
+
+sudo bash -c 'cat <<EOF > /etc/duo/duo.conf
+[duo]
+ikey={{ DuoIKEY }}
+skey={{ DuoSKEY }}
+host=api-550c2cbe.duosecurity.com
+EOF'
+
+sudo chmod 600 /etc/duo/duo.conf
+###################################
+
+
+
+resource "aws_ssm_document" "install_duo_with_compilation" {
+  name          = "InstallDuoWithCompilation"
+  document_type = "Automation"
+  tags          = var.tags
+
+  content = jsonencode({
+    schemaVersion = "0.3",
+    description   = "Install Duo agent with source code compilation.",
+    parameters    = {
+      InstanceIds  = { type = "StringList", description = "List of EC2 Instance IDs." }
+      S3BucketName = { type = "String", description = "S3 bucket containing the Duo agent." }
+      DuoIKEY      = { type = "String", description = "Duo integration key." }
+      DuoSKEY      = { type = "String", description = "Duo secret key." }
+    },
+    mainSteps = [
+      {
+        name     = "DownloadAndExtractDuoAgent",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/agents",
+              "aws s3 cp s3://{{ S3BucketName }}/agents/duo-agent.tar.gz /tmp/agents/duo-agent.tar.gz",
+              "tar -xzf /tmp/agents/duo-agent.tar.gz -C /tmp/agents/"
+            ]
+          }
+        }
+      },
+      {
+        name     = "CompileAndInstallDuo",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              # Compile login_duo
+              "cd /tmp/agents/duo_unix-2.0.4/login_duo || exit 1",
+              "make",
+
+              # Compile pam_duo
+              "cd /tmp/agents/duo_unix-2.0.4/pam_duo || exit 1",
+              "make",
+
+              # Install compiled binaries
+              "sudo cp /tmp/agents/duo_unix-2.0.4/login_duo/login_duo /usr/local/sbin/",
+              "sudo cp /tmp/agents/duo_unix-2.0.4/pam_duo/.libs/pam_duo.so /lib/security/",
+
+              # Set permissions
+              "sudo chmod 755 /usr/local/sbin/login_duo",
+              "sudo chmod 755 /lib/security/pam_duo.so"
+            ]
+          }
+        }
+      },
+      {
+        name     = "ConfigureDuo",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              # Create the Duo configuration
+              "sudo mkdir -p /etc/duo",
+              "sudo bash -c 'cat <<EOF > /etc/duo/duo.conf
+[duo]
+ikey={{ DuoIKEY }}
+skey={{ DuoSKEY }}
+host=api-550c2cbe.duosecurity.com
+EOF'",
+
+              # Set permissions for the configuration file
+              "sudo chmod 600 /etc/duo/duo.conf",
+
+              # Confirm installation
+              "echo 'Duo installation and configuration completed successfully.'"
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
+
