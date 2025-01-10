@@ -77,3 +77,154 @@ resource "aws_ssm_document" "install_duo_no_dependencies" {
     ]
   })
 }
+
+#########################
+
+resource "aws_ssm_document" "install_and_configure_duo_unix" {
+  name          = "InstallAndConfigureDuoUnix"
+  document_type = "Automation"
+
+  content = jsonencode({
+    schemaVersion = "0.3"
+    description   = "Installs and configures Duo UNIX with PAM support on Linux EC2 instances."
+    parameters    = {
+      InstanceIds = {
+        type        = "StringList"
+        description = "List of EC2 Instance IDs."
+      }
+      Region = {
+        type    = "String"
+        default = "${data.aws_region.current.name}"
+      }
+      DuoIntegrationKey = {
+        type        = "String"
+        description = "Duo Integration Key."
+      }
+      DuoSecretKey = {
+        type        = "String"
+        description = "Duo Secret Key."
+      }
+      DuoApiHost = {
+        type        = "String"
+        description = "Duo API Hostname."
+      }
+    }
+    mainSteps = [
+      {
+        name     = "InstallAndConfigure"
+        action   = "aws:runCommand"
+        inputs   = {
+          DocumentName = "AWS-RunShellScript"
+          InstanceIds  = "{{ InstanceIds }}"
+          Parameters   = {
+            commands = [
+              # Install dependencies
+              "sudo yum install -y openssl-devel pam-devel gcc make",
+
+              # Download and extract Duo UNIX tarball
+              "mkdir -p /tmp/duo",
+              "curl -o /tmp/duo/duo_unix.tar.gz https://dl.duosecurity.com/duo_unix-latest.tar.gz",
+              "tar zxf /tmp/duo/duo_unix.tar.gz -C /tmp/duo/",
+              "cd /tmp/duo/duo_unix-*",
+
+              # Build and install Duo UNIX with PAM support
+              "./configure --with-pam --prefix=/usr && make && sudo make install",
+
+              # Configure pam_duo
+              "sudo mkdir -p /etc/duo",
+              "sudo tee /etc/duo/pam_duo.conf > /dev/null <<EOL",
+              "[duo]",
+              "ikey = {{ DuoIntegrationKey }}",
+              "skey = {{ DuoSecretKey }}",
+              "host = {{ DuoApiHost }}",
+              "pushinfo = yes",
+              "autopush = yes",
+              "EOL"
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
+
+
+#################
+
+resource "aws_ssm_document" "install_duo_unix" {
+  name          = "InstallDuoUnix"
+  document_type = "Automation"
+
+  content = jsonencode({
+    schemaVersion = "0.3"
+    description   = "Installs Duo UNIX with PAM support on Linux EC2 instances."
+    parameters    = {
+      InstanceIds = {
+        type        = "StringList"
+        description = "List of EC2 Instance IDs."
+      }
+      Region = {
+        type    = "String"
+        default = "${data.aws_region.current.name}"
+      }
+      DuoIntegrationKey = {
+        type        = "String"
+        description = "Duo Integration Key."
+      }
+      DuoSecretKey = {
+        type        = "String"
+        description = "Duo Secret Key."
+      }
+      DuoApiHost = {
+        type        = "String"
+        description = "Duo API Hostname."
+      }
+    }
+    mainSteps = [
+      {
+        name     = "InstallDependencies"
+        action   = "aws:runCommand"
+        inputs   = {
+          DocumentName = "AWS-RunShellScript"
+          InstanceIds  = "{{ InstanceIds }}"
+          Parameters   = {
+            commands = [
+              "sudo yum install -y openssl-devel pam-devel gcc make",
+              "mkdir -p /tmp/duo",
+              "curl -o /tmp/duo/duo_unix.tar.gz https://dl.duosecurity.com/duo_unix-latest.tar.gz",
+              "tar zxf /tmp/duo/duo_unix.tar.gz -C /tmp/duo/",
+              "cd /tmp/duo/duo_unix-*",
+              "./configure --with-pam --prefix=/usr && make && sudo make install"
+            ]
+          }
+        }
+      },
+      {
+        name     = "ConfigureDuoUnix"
+        action   = "aws:runCommand"
+        inputs   = {
+          DocumentName = "AWS-RunShellScript"
+          InstanceIds  = "{{ InstanceIds }}"
+          Parameters   = {
+            commands = [
+              "sudo mkdir -p /etc/duo",
+              "sudo tee /etc/duo/pam_duo.conf > /dev/null <<EOL",
+              "[duo]",
+              "ikey = {{ DuoIntegrationKey }}",
+              "skey = {{ DuoSecretKey }}",
+              "host = {{ DuoApiHost }}",
+              "pushinfo = yes",
+              "autopush = yes",
+              "EOL"
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
+
+
+sudo mkdir -p /etc/duo
+sudo mv duo_unix-2.0.4/pam_duo/pam_duo.conf /etc/duo/pam_duo.conf
+
