@@ -1,11 +1,4 @@
-Step fails when it is verifying the command has completed. Command 5d8df468-a83c-42cb-9add-ac4fde58f7e2 returns unexpected invocation result: {Status=[Failed], ResponseCode=[1], Output=[Last metadata expiration check: 21:46:31 ago on Thu Jan 9 15:21:55 2025. Dependencies resolved. Nothing to do. Complete! Last metadata expiration check: 21:46:32 ago on Thu Jan 9 15:21:55 2025. Dependencies resolved. ================================================================================ Package Architecture Version Repository Size ================================================================================ Installing Groups: Development Tools Transaction Summary ================================================================================ Complete! Last metadata expiration check: 21:46:33 ago on Thu Jan 9 15:21:55 2025. Package tar-2:1.34-1.amzn2023.0.4.x86_64 is already installed. Package gzip-1.12-1.amzn...
-
-Command 5d8df468-a83c-42cb-9add-ac4fde58f7e2 returns unexpected invocation result: 
-{Status=[Failed], ResponseCode=[1], Output=[Last metadata expiration check: 21:46:31 ago on Thu Jan  9 15:21:55 2025.
-Dependencies resolved.
-Nothing to do.
-Complete!
-Last metadata expiration check: 21:46:32 ago on Thu Jan  9 15:21:55 2025.
+Last metadata expiration check: 0:00:20 ago on Fri Jan 10 13:23:12 2025.
 Dependencies resolved.
 ================================================================================
  Package           Architecture     Version             Repository         Size
@@ -17,54 +10,31 @@ Transaction Summary
 ================================================================================
 
 Complete!
-Last metadata expiration check: 21:46:33 ago on Thu Jan  9 15:21:55 2025.
+Last metadata expiration check: 0:00:21 ago on Fri Jan 10 13:23:12 2025.
+Package gcc-11.4.1-2.amzn2023.0.2.x86_64 is already installed.
+Package make-1:4.3-5.amzn2023.0.2.x86_64 is already installed.
 Package tar-2:1.34-1.amzn2023.0.4.x86_64 is already installed.
 Package gzip-1.12-1.amzn2023.0.1.x86_64 is already installed.
 (try to add '--allowerasing' to command line to replace conflicting packages or '--skip-broken' to skip uninstallable packages)
 
 ----------ERROR-------
-================================================================================
-WARNING:
-  A newer release of "Amazon Linux" is available.
-
-  Available Versions:
-
-  Version 2023.6.20250107:
-    Run the following command to upgrade to 2023.6.20250107:
-
-      dnf upgrade --releasever=2023.6.20250107
-
-    Release notes:
-     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.6.20250107.html
-
-================================================================================
 No match for group package "system-rpm-config"
 No match for group package "rcs"
 No match for group package "pkgconfig"
-================================================================================
-WARNING:
-  A newer release of "Amazon Linux" is available.
-
-  Available Versions:
-
-  Version 2023.6.20250107:
-    Run the following command to upgrade to 2023.6.20250107:
-
-      dnf upgrade --releasever=2023.6.20250107
-
-    Release notes:
-     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.6.20250107.html
-
-================================================================================
 Error: 
  Problem: problem with installed package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64
   - package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64 from @System conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.8
----Error truncated----], OutputPayload=[{"Status":"Failed","ResponseCode":1,"Output":"Last metadata expiration check: 21:46:31 ago on Thu Jan  9 15:21:55 2025.
-Dependencies resolved.
-Nothing to do.
-Complete!
-Last metadata expiration check: 21:46:32 ago on Thu Jan  9 15:21:55 2025.
+  - package curl-minimal-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.88.0-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.88.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.0.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.0.1-1.amzn2023.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.2.1-1.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.2.1-1.amzn2023.0.3.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minima
+---Error truncated----
+
+{"Status":"Failed","ResponseCode":1,"Output":"Last metadata expiration check: 0:00:20 ago on Fri Jan 10 13:23:12 2025.
 Dependencies resolved.
 \u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
  Package           Architecture     Version             Repository         Size
@@ -76,47 +46,100 @@ Transaction Summary
 \u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
 
 Complete!
-Last metadata expiration check: 21:46:33 ago on Thu Jan  9 15:21:55 2025.
+Last metadata expiration check: 0:00:21 ago on Fri Jan 10 13:23:12 2025.
+Package gcc-11.4.1-2.amzn2023.0.2.x86_64 is already installed.
+Package make-1:4.3-5.amzn2023.0.2.x86_64 is already installed.
 Package tar-2:1.34-1.amzn2023.0.4.x86_64 is already installed.
 Package gzip-1.12-1.amzn2023.0.1.x86_64 is already installed.
 (try to add \u0027--allowerasing\u0027 to command line to replace conflicting packages or \u0027--skip-broken\u0027 to skip uninstallable packages)
 
 ----------ERROR-------
-\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
-WARNING:
-  A newer release of \"Amazon Linux\" is available.
-
-  Available Versions:
-
-  Version 2023.6.20250107:
-    Run the following command to upgrade to 2023.6.20250107:
-
-      dnf upgrade --releasever\u003d2023.6.20250107
-
-    Release notes:
-     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.6.20250107.html
-
-\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
 No match for group package \"system-rpm-config\"
 No match for group package \"rcs\"
 No match for group package \"pkgconfig\"
-\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
-WARNING:
-  A newer release of \"Amazon Linux\" is available.
-
-  Available Versions:
-
-  Version 2023.6.20250107:
-    Run the following command to upgrade to 2023.6.20250107:
-
-      dnf upgrade --releasever\u003d2023.6.20250107
-
-    Release notes:
-     https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.6.20250107.html
-
-\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
 Error: 
  Problem: problem with installed package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64
   - package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64 from @System conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.8
----Error truncated----","CommandId":"5d8df468-a83c-42cb-9add-ac4fde58f7e2"}], CommandId=[5d8df468-a83c-42cb-9add-ac4fde58f7e2]}
+  - package curl-minimal-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.88.0-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.88.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.0.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.0.1-1.amzn2023.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.2.1-1.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.2.1-1.amzn2023.0.3.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+
+
+Failure message
+Step fails when it is verifying the command has completed. Command 4b538f21-4c6f-4e8e-a1b1-d89a49464444 returns unexpected invocation result: {Status=[Failed], ResponseCode=[1], Output=[Last metadata expiration check: 0:00:20 ago on Fri Jan 10 13:23:12 2025. Dependencies resolved. ================================================================================ Package Architecture Version Repository Size ================================================================================ Installing Groups: Development Tools Transaction Summary ================================================================================ Complete! Last metadata expiration check: 0:00:21 ago on Fri Jan 10 13:23:12 2025. Package gcc-11.4.1-2.amzn2023.0.2.x86_64 is already installed. Package make-1:4.3-5.amzn2023.0.2.x86_64 is already installed. Package tar-2:1.34-1.amzn2023.0.4.x86_64 is already installed. Package gzip-1.12-1.am...
+
+
+Command 4b538f21-4c6f-4e8e-a1b1-d89a49464444 returns unexpected invocation result: 
+{Status=[Failed], ResponseCode=[1], Output=[Last metadata expiration check: 0:00:20 ago on Fri Jan 10 13:23:12 2025.
+Dependencies resolved.
+================================================================================
+ Package           Architecture     Version             Repository         Size
+================================================================================
+Installing Groups:
+ Development Tools                                                             
+
+Transaction Summary
+================================================================================
+
+Complete!
+Last metadata expiration check: 0:00:21 ago on Fri Jan 10 13:23:12 2025.
+Package gcc-11.4.1-2.amzn2023.0.2.x86_64 is already installed.
+Package make-1:4.3-5.amzn2023.0.2.x86_64 is already installed.
+Package tar-2:1.34-1.amzn2023.0.4.x86_64 is already installed.
+Package gzip-1.12-1.amzn2023.0.1.x86_64 is already installed.
+(try to add '--allowerasing' to command line to replace conflicting packages or '--skip-broken' to skip uninstallable packages)
+
+----------ERROR-------
+No match for group package "system-rpm-config"
+No match for group package "rcs"
+No match for group package "pkgconfig"
+Error: 
+ Problem: problem with installed package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64
+  - package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64 from @System conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.88.0-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.88.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.0.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.0.1-1.amzn2023.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.2.1-1.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.2.1-1.amzn2023.0.3.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minima
+---Error truncated----], OutputPayload=[{"Status":"Failed","ResponseCode":1,"Output":"Last metadata expiration check: 0:00:20 ago on Fri Jan 10 13:23:12 2025.
+Dependencies resolved.
+\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
+ Package           Architecture     Version             Repository         Size
+\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
+Installing Groups:
+ Development Tools                                                             
+
+Transaction Summary
+\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d\u003d
+
+Complete!
+Last metadata expiration check: 0:00:21 ago on Fri Jan 10 13:23:12 2025.
+Package gcc-11.4.1-2.amzn2023.0.2.x86_64 is already installed.
+Package make-1:4.3-5.amzn2023.0.2.x86_64 is already installed.
+Package tar-2:1.34-1.amzn2023.0.4.x86_64 is already installed.
+Package gzip-1.12-1.amzn2023.0.1.x86_64 is already installed.
+(try to add \u0027--allowerasing\u0027 to command line to replace conflicting packages or \u0027--skip-broken\u0027 to skip uninstallable packages)
+
+----------ERROR-------
+No match for group package \"system-rpm-config\"
+No match for group package \"rcs\"
+No match for group package \"pkgconfig\"
+Error: 
+ Problem: problem with installed package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64
+  - package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64 from @System conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.88.0-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-7.88.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.0.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.0.1-1.amzn2023.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.2.1-1.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minimal-8.2.1-1.amzn2023.0.3.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
+  - package curl-minima
+---Error truncated----","CommandId":"4b538f21-4c6f-4e8e-a1b1-d89a49464444"}], CommandId=[4b538f21-4c6f-4e8e-a1b1-d89a49464444]}
