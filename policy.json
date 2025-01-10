@@ -1,1 +1,10 @@
 
+sh-5.2$ sudo rpm -ivh /tmp/agents/rapid7-insight-agent-4.0.13.32-1.aarch64.rpm
+warning: /tmp/agents/rapid7-insight-agent-4.0.13.32-1.aarch64.rpm: Header V4 RSA/SHA512 Signature, key ID 9deec457: NOKEY
+Verifying...                          ################################# [100%]
+Preparing...                          ################################# [100%]
+        package rapid7-insight-agent-4.0.13.32-1.aarch64 is intended for a different architecture
+sh-5.2$ sudo systemctl enable rapid7-agent
+Failed to enable unit: Unit file rapid7-agent.service does not exist.
+sh-5.2$ sudo systemctl start rapid7-agent
+Failed to start rapid7-agent.service: Unit rapid7-agent.service not found.
