@@ -112,3 +112,25 @@ autopush = yes
 EOF'"
 
 
+{
+  "name": "InstallDuo",
+  "action": "aws:runCommand",
+  "inputs": {
+    "DocumentName": "AWS-RunShellScript",
+    "InstanceIds": ["{{ InstanceIds }}"],
+    "Parameters": {
+      "commands": [
+        "sudo mkdir -p /etc/duo",
+        "sudo bash -c \"echo '[duo]' > /etc/duo/login_duo.conf\"",
+        "sudo bash -c \"echo 'ikey={{ DuoIKEY }}' >> /etc/duo/login_duo.conf\"",
+        "sudo bash -c \"echo 'skey={{ DuoSKEY }}' >> /etc/duo/login_duo.conf\"",
+        "sudo bash -c \"echo 'host={{ DuoApiHost }}' >> /etc/duo/login_duo.conf\"",
+        "sudo bash -c \"echo 'pushinfo = yes' >> /etc/duo/login_duo.conf\"",
+        "sudo bash -c \"echo 'autopush = yes' >> /etc/duo/login_duo.conf\""
+      ]
+    }
+  }
+}
+
+
+
