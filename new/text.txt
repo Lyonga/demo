@@ -100,3 +100,15 @@ cat: EOF: No such file or directory
           }
         }
       }
+
+"sudo mkdir -p /etc/duo",
+"sudo bash -c 'cat <<EOF > /etc/duo/login_duo.conf
+[duo]
+ikey={{ DuoIKEY }}
+skey={{ DuoSKEY }}
+host={{ DuoApiHost }}
+pushinfo = yes
+autopush = yes
+EOF'"
+
+
