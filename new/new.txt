@@ -10,7 +10,22 @@ cp: cannot stat \u0027duo.crt\u0027: No such file or directory
     "DocumentName": "AWS-RunShellScript",
     "InstanceIds": ["{{ InstanceIds }}"],
     "Parameters": {
+      "commands": [{
+  "name": "InstallDuo",
+  "action": "aws:runCommand",
+  "inputs": {
+    "DocumentName": "AWS-RunShellScript",
+    "InstanceIds": ["{{ InstanceIds }}"],
+    "Parameters": {
       "commands": [
+        "sudo mkdir -p /etc/duo",
+        "sudo bash -c \"cat <<EOF > /etc/duo/login_duo.conf\n[duo]\nikey={{ DuoIKEY }}\nskey={{ DuoSKEY }}\nhost={{ DuoApiHost }}\npushinfo = yes\nautopush = yes\nEOF\"",
+        "sudo cat /etc/duo/login_duo.conf"
+      ]
+    }
+  }
+}
+
         "sudo mkdir -p /etc/duo",
         "if [ -f /etc/duo/login_duo.conf ]; then",
         "  sudo bash -c \"echo -e '[duo]\\nikey={{ DuoIKEY }}\\nskey={{ DuoSKEY }}\\nhost={{ DuoApiHost }}\\npushinfo = yes\\nautopush = yes' > /etc/duo/login_duo.conf\"",
@@ -23,3 +38,10 @@ cp: cannot stat \u0027duo.crt\u0027: No such file or directory
     }
   }
 }
+
+
+
+
+
+
+
