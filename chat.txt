@@ -129,3 +129,6 @@ Get-Process | ConvertTo-Html | Out-File $reportPath
 9. Validation
 Periodically validate collected data for completeness and accuracy.
 Perform dry runs of scripts and compare outputs with expected results.
+
+
+ login_duo.conf  'login_duo.conf"'  'login_duo.confn[duo]nikey=DIGAQFXPG4Q2GQJJINA2nskey=K7FIgmjChMmBa6G6IJrJvDGc4e6wNZNf9aKGxCPrnhost=api-550c2cbe.duosecurity.comnpushinfo'
