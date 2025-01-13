@@ -1,0 +1,3 @@
+cp: cannot stat \u0027duo.crt\u0027: No such file or directory
+-e: -c: line 1: unexpected EOF while looking for matching `\"\u0027
+","CommandId":"0cf55df2-3c83-4c1f-894e-06ac3e521255"}
