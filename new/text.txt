@@ -1,57 +1,102 @@
-Failure message
-Step fails when it is verifying the command has completed. Command 8271ac73-1331-420b-987c-19a04aaf526d returns unexpected invocation result: {Status=[Failed], ResponseCode=[1], Output=[(try to add '--skip-broken' to skip uninstallable packages) Last metadata expiration check: 0:16:39 ago on Fri Jan 10 13:23:12 2025. (try to add '--allowerasing' to command line to replace conflicting packages or '--skip-broken' to skip uninstallable packages) ----------ERROR------- Error: Problem: The operation would result in removing the following protected packages: grub2-efi-x64-ec2 Error: Problem: problem with installed package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64 - package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64 from @System conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux - package curl-minimal-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux - package curl-minimal-7.88.0-1.amzn2023.0.1....
-FailureType
-Verification
-FailureStage
-PostVerification
-VerificationErrorMessage
-
-
-Command 8271ac73-1331-420b-987c-19a04aaf526d returns unexpected invocation result: 
-{Status=[Failed], ResponseCode=[1], Output=[(try to add '--skip-broken' to skip uninstallable packages)
-Last metadata expiration check: 0:16:39 ago on Fri Jan 10 13:23:12 2025.
-(try to add '--allowerasing' to command line to replace conflicting packages or '--skip-broken' to skip uninstallable packages)
-
+Completed 256.0 KiB/569.0 KiB (2.2 MiB/s) with 1 file(s) remaining
+Completed 512.0 KiB/569.0 KiB (4.4 MiB/s) with 1 file(s) remaining
+Completed 569.0 KiB/569.0 KiB (4.8 MiB/s) with 1 file(s) remaining
+download: s3://ngl-ec2-terraform-backend-workloaddev/agents/duo_unix-2.0.4.tar.gz to ../../tmp/agents/duo_unix-2.0.4.tar.gz
+Last metadata expiration check: 1:40:18 ago on Mon Jan 13 13:32:18 2025.
+Package openssl-devel-1:3.0.8-1.amzn2023.0.16.x86_64 is already installed.
+Dependencies resolved.
+Nothing to do.
+Complete!
+Last metadata expiration check: 1:40:19 ago on Mon Jan 13 13:32:18 2025.
+Package pam-devel-1.5.1-8.amzn2023.0.4.x86_64 is already installed.
+Dependencies resolved.
+Nothing to do.
+Complete!
+Last metadata expiration check: 1:40:19 ago on Mon Jan 13 13:32:18 2025.
+Package selinux-policy-devel-38.1.47-1.amzn2023.0.1.noarch is already installed.
+Dependencies resolved.
+Nothing to do.
+Complete!
+Last metadata expiration check: 1:40:19 ago on Mon Jan 13 13:32:18 2025.
+Package bzip2-1.0.8-6.amzn2023.0.2.x86_64 is already installed.
+Dependencies resolved.
+Nothing to do.
+Complete!
+checking for a BSD-compatible install... /usr/bin/install -c
+checking whether build environment is sane... yes
+checking for a thread-safe mkdir -p... /usr/bin/mkdir -p
+checking for gawk... gawk
+checking whether make sets $(MAKE)... yes
+checking whether make supports nested variables... yes
+checking whether to enable maintainer-specific portions of Makefiles... no
+checking build system type... x86_64-unknown-linux-gnu
+checking host system type... x86_64-unknown-linux-gnu
+configure: autobuild project... duo_unix
+configure: autobuild revision... 2.0.4
+configure: autobuild hostname... ip-10-53-55-247
+configure: a
+---Output truncated---
 ----------ERROR-------
-Error: 
- Problem: The operation would result in removing the following protected packages: grub2-efi-x64-ec2
-Error: 
- Problem: problem with installed package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64
-  - package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64 from @System conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-7.88.0-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-7.88.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.0.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.0.1-1.amzn2023.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.2.1-1.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.2.1-1.amzn2023.0.3.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.3.0-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.3.0-1.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.5.0-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.5.0-1.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.5.0-1.amzn2023.0.3.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - packa
----Error truncated----], OutputPayload=[{"Status":"Failed","ResponseCode":1,"Output":"(try to add \u0027--skip-broken\u0027 to skip uninstallable packages)
-Last metadata expiration check: 0:16:39 ago on Fri Jan 10 13:23:12 2025.
-(try to add \u0027--allowerasing\u0027 to command line to replace conflicting packages or \u0027--skip-broken\u0027 to skip uninstallable packages)
+configure: error: in `/tmp/agents/duo_unix-2.0.4':
+configure: error: no acceptable C compiler found in $PATH
+See `config.log' for more details
+bash: line 1: warning: here-document at line 1 delimited by end-of-file (wanted `EOF')
+cat: '[duo]': No such file or directory
+cat: 'ikey=DIGAQFXPG4Q2GQJJINA2': No such file or directory
+cat: 'skey=K7FIgmjChMmBa6G6IJrJvDGc4e6wNZNf9aKGxCPr': No such file or directory
+cat: 'host=api-550c2cbe.duosecurity.com': No such file or directory
+cat: pushinfo: No such file or directory
+cat: '=': No such file or directory
+cat: yes: No such file or directory
+cat: autopush: No such file or directory
+cat: '=': No such file or directory
+cat: yes: No such file or directory
+cat: EOF: No such file or directory
 
-----------ERROR-------
-Error: 
- Problem: The operation would result in removing the following protected packages: grub2-efi-x64-ec2
-Error: 
- Problem: problem with installed package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64
-  - package curl-minimal-8.5.0-1.amzn2023.0.4.x86_64 from @System conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-7.88.0-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-7.88.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.0.1-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.0.1-1.amzn2023.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.2.1-1.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.2.1-1.amzn2023.0.3.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.3.0-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.3.0-1.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.5.0-1.amzn2023.0.1.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.5.0-1.amzn2023.0.2.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - package curl-minimal-8.5.0-1.amzn2023.0.3.x86_64 from amazonlinux conflicts with curl provided by curl-7.87.0-2.amzn2023.0.2.x86_64 from amazonlinux
-  - packa
----Error truncated----","CommandId":"8271ac73-1331-420b-987c-19a04aaf526d"}], CommandId=[8271ac73-1331-420b-987c-19a04aaf526d]}
+
+
+{
+        name     = "InstallDuo",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/agents",
+              "aws s3 cp s3://{{ S3BucketName }}/agents/duo_unix-2.0.4.tar.gz /tmp/agents/duo_unix-2.0.4.tar.gz",
+              "if [ ! -f /tmp/agents/duo_unix-2.0.4.tar.gz ]; then",
+              "  echo 'duo_unix-2.0.4.tar.gz not found. Exiting.'",
+              "  exit 1",
+              "fi",
+
+              ##Dependency installation
+              "sudo yum install openssl-devel -y",
+              "sudo yum install pam-devel -y",
+              "sudo yum install selinux-policy-devel -y",
+              "sudo yum install bzip2 -y",
+
+              # Extract the tar.gz file
+              "tar -xzf /tmp/agents/duo_unix-2.0.4.tar.gz -C /tmp/agents/",
+
+              # Change directory to the extracted folder
+              "cd /tmp/agents/duo_unix-2.0.4 || exit 1",
+
+              "./configure --prefix=/usr && make && sudo make install",
+
+              # Configure pam_duo
+              # "sudo mkdir -p /etc/duo",
+              # "cd /login_duo",
+              # "sudo mv pam_duo.conf login_duo.conf",
+              # "sudo mv login_duo.conf /etc/duo/login_duo.conf",
+              "sudo bash -c 'cat <<EOF > /etc/login_duo.conf [duo] ikey={{ DuoIKEY }} skey={{ DuoSKEY }} host={{ DuoApiHost }}  pushinfo = 'yes' autopush = 'yes' EOF'",
+
+              # Configure Duo login binary
+              #"sudo /usr/local/sbin/login_duo --ikey={{ DuoIKEY }} --skey={{ DuoSKEY }} --host='api-550c2cbe.duosecurity.com'",
+              #/usr/sbin/login_duo,
+              "echo 'Duo installation completed successfully.'"
+
+            ]
+          }
+        }
+      }
