@@ -16,7 +16,10 @@ At line:1 char:1
     + FullyQualifiedErrorId : CommandNotFoundException
 
 PS C:\scripts> Start-Process msiexec -FilePath "C:\\Scripts\\RAPID7_X86_64.MSI" -ArgumentList \"/CONFIGCHOICE=LOCAL CUSTOMCONFIGPATH='C:\\Scripts' /qn\" -Wait -PassThru | Out-Null
-Start-Process : A positional parameter cannot be found that accepts argument 'msiexec'.
+Start-Process : A positional parameter cannoStart-Process -FilePath "msiexec.exe" `
+    -ArgumentList "/i C:\\Scripts\\RAPID7_X86_64.MSI /CONFIGCHOICE=LOCAL CUSTOMCONFIGPATH='C:\\Scripts' /qn" `
+    -Wait -PassThru
+t be found that accepts argument 'msiexec'.
 At line:1 char:1
 + Start-Process msiexec -FilePath "C:\\Scripts\\RAPID7_X86_64.MSI" -Arg ...
 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -29,4 +32,28 @@ At line:1 char:1
 + Start-Process msiexec.exe -FilePath "C:\\Scripts\\RAPID7_X86_64.MSI"  ...
 + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     + CategoryInfo          : InvalidArgument: (:) [Start-Process], ParameterBindingException
-    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.StartProcessCommand
+
+
+
+
+Start-Process -FilePath "msiexec.exe" `
+    -ArgumentList "/i C:\\scripts\\DUOWINDOWSLOGON64.msi IKEY=\"DIGAQFXPG4Q2GQJJINA2\" SKEY=\"K7FIgmjChMmBa6G6IJrJvDGc4e6wNZNf9aKGxCPr\" HOST=\"api-550c2cbe.duosecurity.com\" /qn" `
+    -Wait -PassThru
+
+
+
+Start-Process -FilePath "msiexec.exe" `
+    -ArgumentList "/i C:\\Scripts\\RAPID7_X86_64.MSI /CONFIGCHOICE=LOCAL CUSTOMCONFIGPATH='C:\\Scripts' /qn" `
+    -Wait -PassThru
+
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.
+
+
+
+
+
+
+
+
+
+
