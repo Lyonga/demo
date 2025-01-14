@@ -1,1 +1,32 @@
-Output truncated--- ----------ERROR------- download failed: s3://ngl-ec2-terraform-backend-workloaddev/agents/CROWDSTRIKE.EXE to ..\..\Scripts\CROWDSTRIKE.EXE [WinError 5] Access is denied: 'C:\\Scripts\\CROWDSTRIKE.EXE
+PS C:\scripts> Start-Process  -FilePath "C:\\scripts\\DUOWINDOWSLOGON64.msi" -ArgumentList IKEY="DIGAQFXPG4Q2GQJJINA2" SKEY='K7FIgmjChMmBa6G6IJrJvDGc4e6wNZNf9aKGxCPr' HOST="api-550c2cbe.duosecurity.com" /qn
+Start-Process : A positional parameter cannot be found that accepts argument 'SKEY=K7FIgmjChMmBa6G6IJrJvDGc4e6wNZNf9aKGxCPr'.
+At line:1 char:1
++ Start-Process  -FilePath "C:\\scripts\\DUOWINDOWSLOGON64.msi" -Argume ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Start-Process], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.StartProcessCommand
+
+PS C:\scripts> lStart-Process msiexec -FilePath "C:\\Scripts\\RAPID7_X86_64.MSI" -ArgumentList \"/CONFIGCHOICE=LOCAL CUSTOMCONFIGPATH='C:\\Scripts' /qn\" -Wait -PassThru | Out-Null
+lStart-Process : The term 'lStart-Process' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the
+path is correct and try again.
+At line:1 char:1
++ lStart-Process msiexec -FilePath "C:\\Scripts\\RAPID7_X86_64.MSI" -Ar ...
++ ~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (lStart-Process:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\scripts> Start-Process msiexec -FilePath "C:\\Scripts\\RAPID7_X86_64.MSI" -ArgumentList \"/CONFIGCHOICE=LOCAL CUSTOMCONFIGPATH='C:\\Scripts' /qn\" -Wait -PassThru | Out-Null
+Start-Process : A positional parameter cannot be found that accepts argument 'msiexec'.
+At line:1 char:1
++ Start-Process msiexec -FilePath "C:\\Scripts\\RAPID7_X86_64.MSI" -Arg ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Start-Process], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.StartProcessCommand
+
+PS C:\scripts> Start-Process msiexec.exe -FilePath "C:\\Scripts\\RAPID7_X86_64.MSI" -ArgumentList \"/CONFIGCHOICE=LOCAL CUSTOMCONFIGPATH='C:\\Scripts' /qn\" -Wait -PassThru | Out-Null
+Start-Process : A positional parameter cannot be found that accepts argument 'msiexec.exe'.
+At line:1 char:1
++ Start-Process msiexec.exe -FilePath "C:\\Scripts\\RAPID7_X86_64.MSI"  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Start-Process], ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.StartProcessCommand
