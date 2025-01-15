@@ -1,3 +1,1 @@
-############################
-
-
+Start-Process msiexec -ArgumentList \"/i\", \"C:\\Scripts\\RAPID7_X86_64.MSI\", \"/l*v\", \"C:\\Scripts\\debug.log\", \"/quiet\", \"/qn\" -Wait -NoNewWindow
