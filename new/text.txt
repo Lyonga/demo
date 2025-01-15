@@ -1,3 +1,12 @@
+
+####
+
+
+Start-Process -FilePath "msiexec.exe" -ArgumentList '/i "C:\Scripts\RAPID7_X86_64.MSI" /CONFIGCHOICE=LOCAL CUSTOMCONFIGPATH="C:\Scripts" /qn' -Wait
+
+Start-Process -FilePath "msiexec.exe" -ArgumentList '/i "C:\scripts\DUOWINDOWSLOGON64.msi" IKEY="DIGAQFXPG4Q2GQJJINA2" SKEY="K7FIgmjChMmBa6G6IJrJvDGc4e6wNZNf9aKGxCPr" HOST="api-550c2cbe.duosecurity.com" /qn' -Wait
+
+
 ipts> Start-Process msiexec -FilePath "C:\\Scripts\\RAPID7_X86_64.MSI" -ArgumentList \"/CONFIGCHOICE=LOCAL CUSTOMCONFIGPATH='C:\\Scripts' /qn\" -Wait -PassThru | Out-Null
 Start-Process : A positional parameter cannot be found that accepts argument 'msiexec'.
 At line:1 char:1
