@@ -1,0 +1,29 @@
+╷
+│ Error: updating CloudWatch Metric Alarm (ec2-resiliency-instance-autorecovery-alarm): operation error CloudWatch: PutMetricAlarm, https response error StatusCode: 400, RequestID: a6415abc-4471-4082-a219-8bcade5e500f, api error ValidationError: The EC2 'Recover' Action is not valid for the associated instance. Please remove or change to a different EC2 action.
+│ 
+│   with aws_cloudwatch_metric_alarm.ec2_instance_auto_recovery,
+│   on main.tf line 149, in resource "aws_cloudwatch_metric_alarm" "ec2_instance_auto_recovery":
+│  149: resource "aws_cloudwatch_metric_alarm" "ec2_instance_auto_recovery" {
+
+
+resource "aws_cloudwatch_metric_alarm" "ec2_instance_auto_recovery" {
+  alarm_name                = local.instance_auto_recovery_alarm-name
+  alarm_description         = "Automatically recover EC2 instance on failure"
+  metric_name               = "StatusCheckFailed_System"
+  namespace                 = "AWS/EC2"
+  statistic                 = "Minimum"
+  period                    = 900
+  evaluation_periods        = 2
+  threshold                 = 2
+  comparison_operator       = "GreaterThanOrEqualToThreshold"
+  alarm_actions             = ["arn:aws:automate:${var.region}:ec2:recover", aws_sns_topic.critical_sns.arn]
+  # alarm_actions             = [
+  #   aws_sns_topic.critical_sns.arn,
+  #   "arn:aws:automate:${var.region}:ec2:recover", ###if we need application restarted by linked ssm doc
+  #   aws_ssm_document.redeploy_application.arn
+  # ]
+  dimensions = {
+    InstanceId = aws_instance.generic.id
+  }
+  tags          = var.tags
+}
