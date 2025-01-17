@@ -1,0 +1,91 @@
+As a senior cloud engineer, I was asked by my engineering manager to review and find out the cause of excessive
+cost increase on AWS. I did and presented and had two follow up ask:
+
+1. Propose a process that can be automated to help team product owners to make cost concious decisions on current vs
+past cost consumptions and give decision points with possible suggestions on how to reduce/save cost.(suggest 3 to 5 options if possible)
+
+2. Identify spending incosistencies for s3 outside of organic cost increase and suggest possible data retention policies in an effort to reduce s3 cost
+
+
+
+Below is a structured approach to address both of your manager’s follow-up asks. These suggestions assume use of AWS-native tooling (such as AWS Budgets, AWS Cost Explorer, CloudWatch, and AWS S3 Lifecycle policies), but the framework can be adapted to any third-party cost-management tools as well.
+
+1. Automated Process for Cost-Conscious Decisions
+Goals
+Provide product owners with meaningful cost insights based on current vs. historical usage.
+Surface decision points and actionable recommendations to reduce costs.
+Integrate seamlessly into existing development or sprint cycles.
+High-Level Overview of the Proposed Process
+Data Collection and Analysis: Gather AWS cost and usage data (daily/weekly) across services.
+Automated Insights Generation: Compare against baselines or budgets and detect anomalies.
+Reporting & Recommendations: Present cost trends, highlight potential optimizations, and propose next steps.
+Action & Follow-Up: Automated or manual triggers (e.g., Slack notifications, Jira tickets) to ensure cost-saving actions are tracked and completed.
+Key Tools & Services
+AWS Budgets: Set up budgets and track actual vs. forecasted spend.
+AWS Cost Explorer: Visualize historical trends and get cost anomaly detection.
+AWS Billing & Cost Management API: Programmatically retrieve cost data to feed your automation pipelines.
+AWS CloudWatch: Create metrics and alarms based on custom thresholds for cost or usage.
+Jira/Ticketing Integration (or similar) for follow-up on recommended actions.
+Possible Options/Flows (3-5)
+Option A: Budget Threshold with Automated Notifications
+Create Budget Thresholds in AWS Budgets for each product/team.
+Set Up Alerts: If a monthly cost threshold (e.g., 80% of budget) is reached, an alert is sent to a Slack channel or email.
+Automated Trend Analysis: Leverage AWS Cost Explorer’s “Anomaly Detection” to understand if usage spikes are out of the ordinary.
+Recommendation Engine: A small Lambda function can parse these anomalies and provide suggestions (e.g., “Underutilized EC2 instances found, consider downsizing or shutting down.”).
+Option B: Cost Dashboard with Weekly Snapshots
+Daily Data Pipeline: Use AWS Cost & Usage Report (CUR) to feed a data store (e.g., S3 -> Athena -> QuickSight).
+Weekly Snapshot Reports: Generate QuickSight dashboards with weekly cost deltas vs. previous periods.
+Team-Specific Metrics: Include at-a-glance metrics (e.g., cost per service, cost per environment).
+Automated Recommendations: Integrate AWS Trusted Advisor or custom logic to highlight potential cost-optimization opportunities (e.g., “EBS volumes unattached for 30 days.”).
+Option C: Jira Workflow Integration
+Scheduled Job (e.g., weekly Lambda) queries AWS Cost Explorer for cost anomalies or usage spikes.
+Auto-Creation of Jira Tickets: When an anomaly is found or budget is exceeded, a new ticket is automatically created in the relevant team’s backlog with details on the cost spike.
+Proposed Solutions in the Ticket: e.g., “Delete old AMIs,” “Optimize RDS instance size,” “Migrate to spot instances,” “Review S3 lifecycle settings.”
+Acceptance Criteria: Ticket must be resolved with an action or justification (e.g., “The spike is valid for our marketing event”).
+Option D: Preventative Guardrails (Infrastructure as Code)
+Policy as Code: Use AWS Organizations Service Control Policies (SCP) or Config Rules to ensure certain cost-heavy actions are flagged or restricted.
+IAM Governance: Limit who can create large EC2 instances or expensive resources.
+Automated Pull Request Checks: If using Infrastructure as Code (Terraform/CloudFormation), implement checks that estimate cost prior to merge.
+Alerts on Large Resource Changes: E.g., a Slack notification if someone spins up an r5.24xlarge EC2 instance.
+Option E: Continuous Feedback in CI/CD
+Cost Estimation Tool: Integrate open-source cost estimation or AWS Price List API into the build pipeline.
+Cost Gate: If the proposed changes will significantly increase monthly spend, block or require manual approval of the PR.
+In-PR Recommendations: “By switching from on-demand to spot instances, you could save 70% on cost.”
+2. Identifying S3 Spending Inconsistencies & Data Retention Policies
+Background
+S3 costs can spike due to unanticipated data growth, inefficient retention policies, or untracked usage (e.g., logging buckets).
+Organic cost increases are expected as data grows with product usage, but inconsistent or spurious spikes often point to misconfigurations, leftover test data, or inefficient storage classes.
+Steps to Identify Spending Inconsistencies
+Analyze Past Usage: Use AWS Cost Explorer or the S3 Storage Lens to see daily/weekly cost trends over time.
+Compare Buckets & Storage Classes: Check for unexpected transitions to more expensive storage classes (e.g., if data is suddenly in standard storage vs. infrequent access).
+Look for Large Increases in Data Transfer: Data transfer costs can rise if objects are frequently accessed or moved across regions.
+Check Lifecycle Policies: Ensure they are still valid and performing as expected, and that data that should be archived is not stuck in Standard storage.
+Suggested Data Retention Policies/Actions
+Lifecycle Tiering Policy
+
+Hot Data: Frequently accessed data remains in S3 Standard or S3 Standard-IA for a short initial period.
+Cold Data: Automatically transition objects to S3 Glacier Flexible Retrieval or S3 Glacier Deep Archive after a defined period (e.g., 90 days).
+Expiration Policy: For data that is no longer needed, expire or delete after compliance requirements are met.
+Split Buckets by Data Access Patterns
+
+Separate your buckets into “frequently accessed” vs. “rarely accessed” so you can easily apply different lifecycle rules without conflict.
+Ensure proper tagging of buckets and objects to track ownership and chargeback.
+Versioning Clean-Up
+
+If versioning is enabled but not managed properly, old versions of objects can accumulate and drive up storage costs.
+Implement a lifecycle rule to expire non-current versions after X days.
+Archive Stale Logs
+
+Application logs or CloudTrail logs in S3 can accumulate quickly.
+Transition them to S3 Glacier or Glacier Deep Archive if they are only needed for compliance or troubleshooting after a certain period.
+Regular Housekeeping
+
+Quarterly Review: Schedule a quarterly cost review to verify that buckets still align with the defined retention policy.
+Automated Checks: A simple Lambda function can run monthly to identify any bucket with large unexpected growth and notify relevant teams.
+Putting It All Together
+By combining the automated process (Part 1) with robust S3-specific policies (Part 2), teams gain:
+
+Visibility: Clear line of sight into costs, anomalies, and potential savings.
+Actionability: Automated alerts and integrated recommendations help teams quickly address cost issues before they become unmanageable.
+Governance: Data retention policies and lifecycle rules ensure S3 storage stays under control, preserving only the necessary data for the required duration.
+These suggestions should help product owners make more informed, cost-conscious decisions and ensure that your organization’s AWS environment remains optimized and aligned with budgetary expectations.
