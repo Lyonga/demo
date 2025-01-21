@@ -1,0 +1,20 @@
+PS C:\program files> Get-Service | Where-Object { $_.DisplayName -like "*Syxsense*" }
+
+Status   Name               DisplayName
+------   ----               -----------
+Stopped  Cloud Managemen... Syxsense Service Monitor
+Running  VcmsPush           Syxsense Responder
+
+
+PS C:\program files> Start-Service -Name "SyxsenseService"
+Start-Service : Cannot find any service with service name 'SyxsenseService'.
+At line:1 char:1
++ Start-Service -Name "SyxsenseService"
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (SyxsenseService:String) [Start-Service], ServiceCommandException
+    + FullyQualifiedErrorId : NoServiceFoundForGivenName,Microsoft.PowerShell.Commands.StartServiceCommand
+
+PS C:\program files> net start "SyxsenseService"
+The service name is invalid.
+
+More help is available by typing NET HELPMSG 2185.
