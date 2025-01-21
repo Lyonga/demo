@@ -1,0 +1,15 @@
+#####################
+#####################
+
+Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*Syxsense*" }
+
+
+  
+Get-Service | Where-Object { $_.DisplayName -like "*Syxsense*" }
+
+
+Test-Path "C:\Program Files\Syxsense"
+
+
+
+Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -like "*Syxsense*" }
