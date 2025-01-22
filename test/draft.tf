@@ -114,3 +114,25 @@ resource "aws_iam_role_policy_attachment" "attach_policy_to_role" {
   role       = aws_iam_role.daily_services_usage_lambda_role.name
   policy_arn = aws_iam_policy.daily_services_usage_lambda_role_policy.arn
 }
+
+
+resource "aws_cloudwatch_event_rule" "monthly_event_rule" {
+  name        = "monthly-event-rule"
+  description = "Triggers monthly on the first day at midnight UTC"
+  schedule_expression = "cron(0 0 1 * ? *)" # Runs on the 1st day of each month at midnight UTC
+}
+
+resource "aws_cloudwatch_event_target" "lambda_target" {
+  rule      = aws_cloudwatch_event_rule.monthly_event_rule.name
+  target_id = "lambda-monthly-trigger"
+  arn       = aws_lambda_function.your_lambda_function.arn # Replace with your Lambda function ARN
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch_to_invoke_lambda" {
+  statement_id  = "AllowCloudWatchInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.your_lambda_function.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.monthly_event_rule.arn
+}
+
