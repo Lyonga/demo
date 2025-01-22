@@ -1,67 +1,113 @@
-commands = [
-  # Create a directory for the agents
-  "mkdir -p /tmp/agents",
-
-  # Define the URL for the Duo agent
-  "duo_url=\"https://${S3BucketName}.s3.{{ Region }}.amazonaws.com/agents/duo-agent.tar.gz\"",
-
-  # Download the Duo agent from S3
-  "curl -o /tmp/agents/duo-agent.tar.gz \"$duo_url\"",
-
-  # Verify the file was downloaded
-  "if [ ! -f /tmp/agents/duo-agent.tar.gz ]; then",
-  "  echo 'Failed to download Duo agent.'",
-  "  exit 1",
-  "fi",
-
-  # Extract the archive
-  "tar -xzf /tmp/agents/duo-agent.tar.gz -C /tmp/agents/",
-
-  # Change directory to the extracted folder
-  "cd /tmp/agents/duo-agent || exit 1",
-
-  # Run the installer (adjust if the extracted archive structure differs)
-  "sudo ./install.sh --ikey={{ DuoIKEY }} --skey={{ DuoSKEY }} --host='api-550c2cbe.duosecurity.com'",
-
-  # Enable and start the Duo agent service
-  "sudo systemctl enable duo-agent",
-  "sudo systemctl start duo-agent",
-
-  # Confirm completion
-  "echo 'Duo installation completed.'"
-]
-
-
-
-
-
-###############
-commands = [
-  # Create a directory for the agents
-  "mkdir -p /tmp/agents",
-
-  # Download the Duo agent from S3 using AWS CLI
-  "aws s3 cp s3://{{ S3BucketName }}/agents/duo-agent.tar.gz /tmp/agents/duo-agent.tar.gz",
-
-  # Verify the file was downloaded
-  "if [ ! -f /tmp/agents/duo-agent.tar.gz ]; then",
-  "  echo 'Failed to download Duo agent.'",
-  "  exit 1",
-  "fi",
-
-  # Extract the archive
-  "tar -xzf /tmp/agents/duo-agent.tar.gz -C /tmp/agents/",
-
-  # Change directory to the extracted folder
-  "cd /tmp/agents/duo-agent || exit 1",
-
-  # Run the installer script
-  "sudo ./install.sh --ikey={{ DuoIKEY }} --skey={{ DuoSKEY }} --host='api-550c2cbe.duosecurity.com'",
-
-  # Enable and start the Duo agent service
-  "sudo systemctl enable duo-agent",
-  "sudo systemctl start duo-agent",
-
-  # Confirm completion
-  "echo 'Duo installation completed.'"
-]
+{
+  "Version": "2012-10-17",
+  "Id": "Key policy created by CloudTrail",
+  "Statement": [
+    {
+      "Sid": "Enable IAM User Permissions",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::543756193223:root"
+      },
+      "Action": "kms:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "Allow CloudTrail to encrypt logs",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudtrail.amazonaws.com"
+      },
+      "Action": "kms:GenerateDataKey*",
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "arn:aws:cloudtrail:*:543756193223:trail/*"
+        }
+      }
+    },
+    {
+      "Sid": "Allow CloudTrail to describe key",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudtrail.amazonaws.com"
+      },
+      "Action": "kms:DescribeKey",
+      "Resource": "*"
+    },
+    {
+      "Sid": "Allow principals in the account to decrypt log files",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": [
+        "kms:Decrypt",
+        "kms:ReEncryptFrom"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "kms:CallerAccount": "543756193223"
+        },
+        "StringLike": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "arn:aws:cloudtrail:*:543756193223:trail/*"
+        }
+      }
+    },
+    {
+      "Sid": "Allow alias creation during setup",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": "kms:CreateAlias",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "kms:ViaService": "ec2.us-east-2.amazonaws.com",
+          "kms:CallerAccount": "543756193223"
+        }
+      }
+    },
+    {
+      "Sid": "Enable cross account log decryption",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": [
+        "kms:Decrypt",
+        "kms:ReEncryptFrom"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "kms:CallerAccount": "543756193223"
+        },
+        "StringLike": {
+          "kms:EncryptionContext:aws:cloudtrail:arn": "arn:aws:cloudtrail:*:543756193223:trail/*"
+        }
+      }
+    },
+    {
+      "Sid": "Allow use of the key",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "arn:aws:iam::543756193223:root",
+          "arn:aws:iam::924696147018:root",
+          "arn:aws:iam::465380538684:root",
+          "arn:aws:iam::384352530920:root"
+        ]
+      },
+      "Action": [
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:DescribeKey"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
