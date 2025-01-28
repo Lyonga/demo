@@ -1,25 +1,6 @@
-│ Error: Invalid reference
-│ 
-│   on ssm-linux.tf line 173, in resource "aws_ssm_document" "install_agents_no_cli_linux":
-│  173:               "crowdstrike_url=\"https://${S3BucketName}.s3.{{ Region }}.amazonaws.com/agents/CrowdStrikeSensor.rpm\"",
-│ 
-│ A reference to a resource type must be followed by at least one attribute
-│ access, specifying the resource name.
-╵
-╷
-│ Error: Invalid reference
-│ 
-│   on ssm-linux.tf line 197, in resource "aws_ssm_document" "install_agents_no_cli_linux":
-│  197:               "rapid7_url=\"https://${S3BucketName}.s3.{{ Region }}.amazonaws.com/agents/rapid7-agent-installer.rpm\"",
-│ 
-│ A reference to a resource type must be followed by at least one attribute
-│ access, specifying the resource name.
-╵
-╷
-│ Error: Invalid reference
-│ 
-│   on ssm-linux.tf line 220, in resource "aws_ssm_document" "install_agents_no_cli_linux":
-│  220:               "duo_url=\"https://${S3BucketName}.s3.{{ Region }}.amazonaws.com/agents/duo-agent.tar.gz\"",
-│ 
-│ A reference to a resource type must be followed by at least one attribute
-│ access, specifying the resource name.
+{'384352530920': {'AWS Secrets Manager': {'2024-11-01': 0.00415, '2024-12-01': 0.00421}, 'Amazon Elastic Compute Cloud - Compute': {'2024-11-01': 79.776, '2024-12-01': 82.4352}, 'Amazon Inspector': {'2024-11-01': 0.8512701929, '2024-12-01': 1.0052094313}, 'Amazon Redshift': {'2024-11-01': 782.822278548, '2024-12-01': 808.95731451}, 'EC2 - Other': {'2024-11-01': 62.0420110935, '2024-12-01': 68.0618300179}}, '454229460814': {}, '235163852221': {}}
+
+WARNING: Not enough months to compute deltas!
+WARNING: Not enough months to compute deltas!
+
+<h2>AWS Monthly Cost Report for Accounts - Summary</h2><table border='1' style='border-collapse:collapse; font-family:Arial, sans-serif; font-size:12px;'><tr style='background-color:SteelBlue;'><td>&nbsp;</td><td colspan='2' style='text-align:center;'><b>AWS-Workloads-Dev</b></td><td colspan='2' style='text-align:center;'><b>AWS-Workloads-QA</b></td><td colspan='2' style='text-align:center;'><b>AWS-Workloads-Prod</b></td><td colspan='2' style='text-align:center;'><b>Total</b></td></tr><tr style='background-color:LightSteelBlue;'><td style='text-align:center;width:80px;'><b>Month</b></td><td style='text-align:center;width:95px;'>384352530920</td><td style='text-align:center;'>&Delta;%</td><td style='text-align:center;width:95px;'>454229460814</td><td style='text-align:center;'>&Delta;%</td><td style='text-align:center;width:95px;'>235163852221</td><td style='text-align:center;'>&Delta;%</td><td style='text-align:center;width:95px;'>All</td><td style='text-align:center;'>&Delta;%</td></t ... (truncated)
