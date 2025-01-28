@@ -1,810 +1,565 @@
-# Daily Cost Reporting using Lambda function
-
 import boto3
 import os
 from datetime import datetime, timedelta
 from botocore.exceptions import ClientError
 
-# Create Cost Explorer service client using saved credentials
+# -----------------------------------------------------------------------------
+# 1) GLOBAL CONSTANTS AND SETUP
+# -----------------------------------------------------------------------------
+
 cost_explorer = boto3.client('ce')
 
-#######################
-from datetime import datetime, timedelta
-
-# For "last month" range:
+MONTHSBACK = 2
 today = datetime.now()
 first_of_this_month = today.replace(day=1)
-last_month_end = first_of_this_month
-last_month_start = (first_of_this_month - timedelta(days=1)).replace(day=1)
 
-MONTHLY_START_DATE = last_month_start.strftime('%Y-%m-%d')
-MONTHLY_END_DATE = last_month_end.strftime('%Y-%m-%d')
-############################################
+start_date = (first_of_this_month - timedelta(days=MONTHSBACK * 30)).replace(day=1)
+end_date = first_of_this_month
 
-#--------------------------------------------------------------------------------------------------
-# Reporting periods
+MONTHLY_START_DATE = start_date.strftime('%Y-%m-%d')
+MONTHLY_END_DATE = end_date.strftime('%Y-%m-%d')
 
-MONTHSBACK = 9
-then = (datetime.now() - timedelta(days = MONTHSBACK*30))
-today = datetime.now()
+print(f"Monthly reporting range: {MONTHLY_START_DATE} to {MONTHLY_END_DATE}")
 
-MONTHLY_START_DATE = (then.replace(day=1)).strftime('%Y-%m-%d')
-MONTHLY_END_DATE = (today.replace(day=1)).strftime('%Y-%m-%d')
+MONTHLY_COST_DATES = []
+temp_date = start_date
+while temp_date < end_date:
+    MONTHLY_COST_DATES.append(temp_date.strftime('%Y-%m-%d'))
+    next_month = (temp_date + timedelta(days=32)).replace(day=1)
+    temp_date = next_month
 
-DAYSBACK = 30
-COLUMNS = DAYSBACK * 2
-START_DATE = (datetime.now() - timedelta(days = DAYSBACK)).strftime('%Y-%m-%d')
-END_DATE = (datetime.now()).strftime('%Y-%m-%d')
-YESTERDAY = (datetime.now() - timedelta(days = 1)).strftime('%Y-%m-%d')
+print("MONTHLY_COST_DATES:", MONTHLY_COST_DATES)
 
-DAILY_COST_DATES = [] # holder for dates used in daily cost changes
-
-for x in range(DAYSBACK+1, 1, -1):
-
-    # This generates dates from 8 days back to yesterday
-    temp_date = datetime.now() - timedelta(days = x-1)
-    if temp_date.strftime('%d') != '01':
-        DAILY_COST_DATES.append(temp_date.strftime('%Y-%m-%d'))
-
-print(DAILY_COST_DATES)
-
-
-MONTHLY_COST_DATES = [] # holder for dates used in monthly cost changes (every 1st of the month)
-MONTHLY_COST_DATES2 = [] # holder for dates used in monthly cost changes (every 2nd of the month)
-
-# This generates monthly dates (every 1st and 2nd of the month) going back 180 days
-for x in range(180, 0, -1):
-
-    if (datetime.now() - timedelta(days = x)).strftime('%d') == '01':
-        temp_date = datetime.now() - timedelta(days = x)
-        MONTHLY_COST_DATES.append(temp_date.strftime('%Y-%m-%d'))
-
-        temp_date = datetime.now() - timedelta(days = x-1)
-        MONTHLY_COST_DATES2.append(temp_date.strftime('%Y-%m-%d'))
-
-print(MONTHLY_COST_DATES)
-print(MONTHLY_COST_DATES2)
-
-BODY_HTML = '<h2>AWS Daily Cost Report for Accounts - Summary</h2>'
-
-#--------------------------------------------------------------------------------------------------
-# Tuple for all the accounts listed in MEDailySpendView settings
-accountMailDict = {
-    '384352530920' : 'clyonga@nglic.com',
-  '454229460814' : 'clyonga@nglic.com',
-  '235163852221' : 'clyonga@nglic.com'
-}
-
-# Dictionary of named accounts
 accountDict = {
-    '384352530920' : 'AWS-Workloads-Dev',
-  '454229460814' : 'AWS-Workloads-QA',
-  '235163852221' : 'AWS-Workloads-Prod'
+    '384352530920': 'AWS-Workloads-Dev',
+    '454229460814': 'AWS-Workloads-QA',
+    '235163852221': 'AWS-Workloads-Prod'
 }
 
-# Create an account list based on dictionary keys
-accountList = []
-for key in accountDict.keys():
-    #print(key)
-    accountList.append(key)
-
-# This list controls the number of accounts to have detailed report
-# Accounts not listed here will be added to "Others". DO NOT remove 'Others' and 'dayTotal'
-displayList = [
-    '384352530920'
-#   '222222222222',
-#   '333333333333',
-    'dayTotal'
-]
+accountMailDict = {
+    '384352530920': 'clyonga@nglic.com',
+    '454229460814': 'clyonga@nglic.com',
+    '235163852221': 'clyonga@nglic.com'
+}
 
 displayListMonthly = [
-  '384352530920',
-  '454229460814',
-  '235163852221',
-  'monthTotal'
+    '384352530920',
+    '454229460814',
+    '235163852221',
+    'monthTotal'
 ]
 
+BODY_HTML = '<h2>AWS Monthly Cost Report for Accounts - Summary</h2>'
 
-# Get cost information for accounts defined in accountDict
+# -----------------------------------------------------------------------------
+# 2) RETRIEVE COST INFO PER ACCOUNT
+# -----------------------------------------------------------------------------
 
 def ce_get_costinfo_per_account(accountDict_input):
+    accountCostDict = {}
 
-    accountCostDict = {} # main dictionary of cost info for each account
-
-    for key in accountDict_input:
-
-        # Retrieve cost and usage metrics for specified account
+    for acct_id in accountDict_input:
+        print(f"Querying cost data for account: {acct_id}")
         response = cost_explorer.get_cost_and_usage(
             TimePeriod={
-                # 'Start': START_DATE,
-                # 'End': END_DATE
                 'Start': MONTHLY_START_DATE,
-                'End':   MONTHLY_END_DATE
+                'End': MONTHLY_END_DATE
             },
-            #Granularity='DAILY',
             Granularity='MONTHLY',
             Filter={
                 'Dimensions': {
                     'Key': 'LINKED_ACCOUNT',
-                    'Values': [
-                        key,    # key is AWS account number
-                    ]
-                },
+                    'Values': [acct_id]
+                }
             },
-            Metrics=[
-                'UnblendedCost',
-            ],
-            #NextPageToken='string'
+            Metrics=['UnblendedCost']
         )
 
-        #print(response)
+        period_cost = 0.0
+        for month_data in response['ResultsByTime']:
+            cost_val = float(month_data['Total']['UnblendedCost']['Amount'])
+            period_cost += cost_val
 
-        periodCost = 0      # holder for cost of the account in reporting period
+        print(f"Cost of account {acct_id} for the period {MONTHLY_START_DATE} to {MONTHLY_END_DATE} is: {period_cost}")
 
-        # Calculate cost of the account in reporting period
-        for dayCost in response['ResultsByTime']:
-            #print(dayCost)
-            periodCost = periodCost + float(dayCost['Total']['UnblendedCost']['Amount'])
+        if period_cost > 0:
+            accountCostDict[acct_id] = response
 
-        print('Cost of account ', key, ' for the period is: ', periodCost )
+    print("Completed ce_get_costinfo_per_account. accountCostDict keys:", list(accountCostDict.keys()))
 
-        # Only include accounts that have non-zero cost in the dictionary
-        if periodCost > 0:
-            accountCostDict.update({key:response})
+    # **Print the result** just before returning
+    print("\n[DEBUG] ce_get_costinfo_per_account() return value:")
+    print(accountCostDict)
 
-    #print(accountCostDict)
     return accountCostDict
 
-#--------------------------------------------------------------------------------------------------
-# Create new dictionary and process totals for the reporting period
+# -----------------------------------------------------------------------------
+# 3) CREATE A MONTHLY-KEYED DICTIONARY OF COSTS
+# -----------------------------------------------------------------------------
 
-def process_costchanges_per_day(accountCostDict_input):
+def process_costchanges_per_month(accountCostDict_input):
+    reportCostDict = {}
 
-    reportCostDict = {} # main dictionary for displaying cost
-    reportCostDict2 = {} # main dictionary for displaying cost with 1st of month removed
+    for date_str in MONTHLY_COST_DATES:
+        reportCostDict[date_str] = {}
 
+    for acct_id, response_data in accountCostDict_input.items():
+        for month_data in response_data['ResultsByTime']:
+            start_str = month_data['TimePeriod']['Start']
+            if start_str not in reportCostDict:
+                reportCostDict[start_str] = {}
+            reportCostDict[start_str][acct_id] = {
+                'Cost': float(month_data['Total']['UnblendedCost']['Amount'])
+            }
 
-    period = DAYSBACK
-    i = 0
+    for date_str in reportCostDict:
+        month_total = 0.0
+        for acct_id in reportCostDict[date_str]:
+            month_total += reportCostDict[date_str][acct_id]['Cost']
+        reportCostDict[date_str]['monthTotal'] = {'Cost': month_total}
 
-    # Create a dictionary for every day of the reporting period
-    while i < period:
-        reportDate = (datetime.now() - timedelta(days = period - i))
-        reportCostDict.update({reportDate.strftime('%Y-%m-%d'):None})
-        reportCostDict[reportDate.strftime('%Y-%m-%d')] = {}
-        i += 1
+    print("Completed process_costchanges_per_month. Keys in reportCostDict:", list(reportCostDict.keys()))
 
+    # Print before returning
+    print("\n[DEBUG] process_costchanges_per_month() return value:")
     print(reportCostDict)
 
-    # Fill up each daily dictionary with Account:Cost key value pairs
-    for key in accountCostDict_input:
-        for dayCost in accountCostDict_input[key]['ResultsByTime']:
-            reportCostDict[dayCost['TimePeriod']['Start']].update(
-                {key: {'Cost': float(dayCost['Total']['UnblendedCost']['Amount'])}}
-            )
-            #print(dayCost['TimePeriod']['Start'])
+    return reportCostDict
 
-    # Get the total cost for each reporting day
-    for key in reportCostDict:
-
-        dayTotal = 0.0      # holder for total cost every key; key is the reporting day
-
-        for account in reportCostDict[key]:
-            #print(reportCostDict[key][account]['Cost'])
-            dayTotal = dayTotal + reportCostDict[key][account]['Cost']
-
-        #reportCostDict[key].update({'dayTotal': dayTotal})
-        reportCostDict[key].update({'dayTotal': {'Cost': dayTotal}})
-
-    #print(reportCostDict)
-
-    # Create a new dictionary with just the dates specified in DAILY_COST_DATES
-    for day in DAILY_COST_DATES:
-        reportCostDict2.update({day:reportCostDict[day]})
-
-    return reportCostDict2
-
-
-#--------------------------------------------------------------------------------------------------
-# Create new dictionary for displaying/e-mailing the reporting period
-# This takes the existing dictionary, displays accounts in displayList, and totals the
-#   other accounts in Others.
+# -----------------------------------------------------------------------------
+# 4) FORMAT COSTS FOR "DISPLAY"
+# -----------------------------------------------------------------------------
 
 def process_costchanges_for_display(reportCostDict_input):
+    displayReportCostDict = {}
 
-    displayReportCostDict = {}      # holder for new dictionary
+    for date_str in reportCostDict_input:
+        displayReportCostDict[date_str] = {}
+        others_cost = 0.0
 
-    # Enter dictionary report dates
-    for reportDate in reportCostDict_input:
-        displayReportCostDict.update({reportDate: None})
-        displayReportCostDict[reportDate] = {}
-
-        otherAccounts = 0.0     # holder for total cost in other accounts
-
-        # Loop through accounts. Note that dayTotal is listed in displayList
-        for accountNum in reportCostDict_input[reportDate]:
-
-            # Only add account if in displayList; add everything else in Others
-            if accountNum in displayList:
-                displayReportCostDict[reportDate].update(
-                    {accountNum: reportCostDict_input[reportDate][accountNum]}
-                )
+        for acct_id, cost_obj in reportCostDict_input[date_str].items():
+            if acct_id in displayListMonthly:
+                displayReportCostDict[date_str][acct_id] = cost_obj
             else:
-                otherAccounts = otherAccounts + reportCostDict_input[reportDate][accountNum]['Cost']
+                others_cost += cost_obj['Cost']
 
-        # Enter total for 'Others' in the dictionary
-        displayReportCostDict[reportDate].update({'Others': {'Cost': otherAccounts}})
+        displayReportCostDict[date_str]['Others'] = {'Cost': others_cost}
+
+    print("Completed process_costchanges_for_display.")
+
+    # Print before returning
+    print("\n[DEBUG] process_costchanges_for_display() return value:")
+    print(displayReportCostDict)
 
     return displayReportCostDict
 
+# -----------------------------------------------------------------------------
+# 5) CALCULATE PERCENT CHANGES MONTH-TO-MONTH
+# -----------------------------------------------------------------------------
 
-#--------------------------------------------------------------------------------------------------
-# Process percentage changes for the reporting period
+def process_percentchanges_per_month(reportCostDict_input):
+    sorted_months = sorted(reportCostDict_input.keys())
+    print("Calculating percent changes across months:", sorted_months)
 
-def process_percentchanges_per_day(reportCostDict_input):
-
-    period = len(DAILY_COST_DATES)
-    i = 0
-
-    # Calculate the delta percent change; add Change:Percent key value pair to daily dictionary
-    while i < period:
-
-        # No percentage delta calculation for first day
+    for i in range(len(sorted_months)):
+        curr_month = sorted_months[i]
         if i == 0:
-            for account in reportCostDict_input[DAILY_COST_DATES[i]]:
-                reportCostDict_input[DAILY_COST_DATES[i]][account].update({'percentDelta':None})
-                #print(reportCostDict_input[DAILY_COST_DATES[i]][account])
+            for acct_id in reportCostDict_input[curr_month]:
+                reportCostDict_input[curr_month][acct_id]['percentDelta'] = None
+        else:
+            prev_month = sorted_months[i - 1]
+            for acct_id, cost_data in reportCostDict_input[curr_month].items():
+                curr_cost = cost_data['Cost']
+                if acct_id in reportCostDict_input[prev_month]:
+                    prev_cost = reportCostDict_input[prev_month][acct_id]['Cost']
+                else:
+                    prev_cost = 0.0
 
-        if i > 0:
-            for account in reportCostDict_input[DAILY_COST_DATES[i]]:
+                if prev_cost == 0 or curr_cost == 0:
+                    reportCostDict_input[curr_month][acct_id]['percentDelta'] = None
+                else:
+                    delta = (curr_cost / prev_cost) - 1
+                    reportCostDict_input[curr_month][acct_id]['percentDelta'] = delta
 
-                try:
-                    percentDelta = 0.0      # daily percent change holder for each account cost
-                    # percentDelta = present_day_cost / previous_day_cost - 1
-                    percentDelta = (reportCostDict_input[DAILY_COST_DATES[i]][account]['Cost']
-                        / reportCostDict_input[DAILY_COST_DATES[i-1]][account]['Cost'] - 1
-                    )
-                    #percentDelta = percentDelta * 100   # for displaying as a perentage
+    print("Completed process_percentchanges_per_month.")
 
-                    reportCostDict_input[DAILY_COST_DATES[i]][account].update({'percentDelta':percentDelta})
-                    #print(reportCostDict_input[DAILY_COST_DATES[i]][account])
-
-                except ZeroDivisionError:
-                    print('ERROR: Division by Zero')
-                    reportCostDict_input[DAILY_COST_DATES[i]][account].update({'percentDelta':None})
-
-        #print(reportCostDict_input[DAILY_COST_DATES[i]])
-
-        i += 1
+    # Print before returning
+    print("\n[DEBUG] process_percentchanges_per_month() return value:")
+    print(reportCostDict_input)
 
     return reportCostDict_input
 
-#--------------------------------------------------------------------------------------------------
-# Compile HTML for E-mail Body
+# -----------------------------------------------------------------------------
+# 6) CREATE HTML REPORT
+# -----------------------------------------------------------------------------
 
 def create_report_html(emailDisplayDict_input, BODY_HTML):
+    print("Generating summary HTML report...")
 
-    #text_out = ''
-
-    # Function to create styles depending on percent change
     def evaluate_change(value):
-        if value < -.15:
-            text_out = "<td style='text-align: right; padding: 4px; color: Navy; font-weight: bold;'>{:.2%}</td>".format(value)
-        elif -.15 <= value < -.10:
-            text_out = "<td style='text-align: right; padding: 4px; color: Blue; font-weight: bold;'>{:.2%}</td>".format(value)
-        elif -.10 <= value < -.05:
-            text_out = "<td style='text-align: right; padding: 4px; color: DodgerBlue; font-weight: bold;'>{:.2%}</td>".format(value)
-        elif -.05 <= value < -.02:
-            text_out = "<td style='text-align: right; padding: 4px; color: DeepSkyBlue; font-weight: bold;'>{:.2%}</td>".format(value)
-        elif -.02 <= value <= .02:
-            text_out = "<td style='text-align: right; padding: 4px;'>{:.2%}</td>".format(value)
-        elif .02 < value <= .05:
-            text_out = "<td style='text-align: right; padding: 4px; color: Orange; font-weight: bold;'>{:.2%}</td>".format(value)
-        elif .05 < value <= .10:
-            text_out = "<td style='text-align: right; padding: 4px; color: DarkOrange; font-weight: bold;'>{:.2%}</td>".format(value)
-        elif .10 < value <= .15:
-            text_out = "<td style='text-align: right; padding: 4px; color: OrangeRed; font-weight: bold;'>{:.2%}</td>".format(value)
-        elif value > .15:
-            text_out = "<td style='text-align: right; padding: 4px; color: Red; font-weight: bold;'>{:.2%}</td>".format(value)
+        if value is None:
+            return "<td>&nbsp;</td>"
+        elif value < -0.15:
+            return f"<td style='text-align:right; color:Navy; font-weight:bold;'>{value:.2%}</td>"
+        elif -0.15 <= value < -0.10:
+            return f"<td style='text-align:right; color:Blue; font-weight:bold;'>{value:.2%}</td>"
+        elif -0.10 <= value < -0.05:
+            return f"<td style='text-align:right; color:DodgerBlue; font-weight:bold;'>{value:.2%}</td>"
+        elif -0.05 <= value < -0.02:
+            return f"<td style='text-align:right; color:DeepSkyBlue; font-weight:bold;'>{value:.2%}</td>"
+        elif -0.02 <= value <= 0.02:
+            return f"<td style='text-align:right;'>{value:.2%}</td>"
+        elif 0.02 < value <= 0.05:
+            return f"<td style='text-align:right; color:Orange; font-weight:bold;'>{value:.2%}</td>"
+        elif 0.05 < value <= 0.10:
+            return f"<td style='text-align:right; color:DarkOrange; font-weight:bold;'>{value:.2%}</td>"
+        elif 0.10 < value <= 0.15:
+            return f"<td style='text-align:right; color:OrangeRed; font-weight:bold;'>{value:.2%}</td>"
+        elif value > 0.15:
+            return f"<td style='text-align:right; color:Red; font-weight:bold;'>{value:.2%}</td>"
         else:
-            text_out = "<td style='text-align: right; padding: 4px;'>{:.2%}</td>".format(value)
+            return f"<td style='text-align:right;'>{value:.2%}</td>"
 
-        return text_out
-
-    # Function to color rows
     def row_color(i_row):
-        if (i_row % 2) == 0:
-            return "<tr style='background-color: WhiteSmoke;'>"
-        else:
-            return "<tr>"
+        return "<tr style='background-color:WhiteSmoke;'>" if (i_row % 2) == 0 else "<tr>"
 
-    # The HTML body of the email.
-    BODY_HTML = BODY_HTML + "<table border=1 style='border-collapse: collapse; \
-                font-family: Arial, Calibri, Helvetica, sans-serif; font-size: 12px;'>"
+    BODY_HTML += "<table border='1' style='border-collapse:collapse; font-family:Arial, sans-serif; font-size:12px;'>"
 
-    # Generate the header of the report/e-mail:
+    # Header row 1
+    BODY_HTML += "<tr style='background-color:SteelBlue;'>"
+    BODY_HTML += "<td>&nbsp;</td>"
+    for acct_id in displayListMonthly:
+        if acct_id in accountDict:
+            BODY_HTML += f"<td colspan='2' style='text-align:center;'><b>{accountDict[acct_id]}</b></td>"
+        elif acct_id == 'monthTotal':
+            BODY_HTML += "<td colspan='2' style='text-align:center;'><b>Total</b></td>"
+        elif acct_id == 'Others':
+            BODY_HTML += "<td colspan='2' style='text-align:center;'><b>Others</b></td>"
+    BODY_HTML += "</tr>"
 
-    BODY_HTML = BODY_HTML + '<tr style="background-color: SteelBlue;">' + "<td>&nbsp;</td>" # start row; blank space in the top left corner
+    # Header row 2
+    BODY_HTML += "<tr style='background-color:LightSteelBlue;'>"
+    BODY_HTML += "<td style='text-align:center;width:80px;'><b>Month</b></td>"
+    for acct_id in displayListMonthly:
+        if acct_id in accountDict:
+            BODY_HTML += f"<td style='text-align:center;width:95px;'>{acct_id}</td><td style='text-align:center;'>&Delta;%</td>"
+        elif acct_id == 'monthTotal':
+            BODY_HTML += "<td style='text-align:center;width:95px;'>All</td><td style='text-align:center;'>&Delta;%</td>"
+        elif acct_id == 'Others':
+            BODY_HTML += "<td style='text-align:center;width:95px;'>Others</td><td style='text-align:center;'>&Delta;%</td>"
+    BODY_HTML += "</tr>"
 
-    # AWS Account names as labels in the TOP/FIRST ROW
-    for accountNum in displayList:
-        if accountNum in accountDict:
-            BODY_HTML = BODY_HTML + "<td colspan=2 style='text-align: center;'><b>" + accountDict[accountNum] + "</b></td>"
-        elif accountNum == 'Others':
-            BODY_HTML = BODY_HTML + "<td colspan=2 style='text-align: center;'><b>Others</b></td>"
-        elif accountNum == 'dayTotal':
-            BODY_HTML = BODY_HTML + "<td colspan=2 style='text-align: center;'><b>Total</b></td>"
+    sorted_months = sorted(emailDisplayDict_input.keys())
+    i_row = 0
+    for month_str in sorted_months:
+        BODY_HTML += row_color(i_row)
+        BODY_HTML += f"<td style='text-align:center;'>{month_str}</td>"
 
-    BODY_HTML = BODY_HTML + "</tr>\n" # end row
+        for acct_id in displayListMonthly:
+            cost_val = emailDisplayDict_input[month_str].get(acct_id, {}).get('Cost', 0.0)
+            pct_change = emailDisplayDict_input[month_str].get(acct_id, {}).get('percentDelta', None)
 
-    BODY_HTML = BODY_HTML + '<tr style="background-color: LightSteelBlue;">' + "<td style='text-align: center; width: 80px;'>Date</td>" # start next row; Date label
+            BODY_HTML += f"<td style='text-align:right; padding:4px;'>$ {cost_val:,.2f}</td>"
+            BODY_HTML += evaluate_change(pct_change)
 
-    # AWS Account numbers in the SECOND ROW
-    for accountNum in displayList:
-        if accountNum in accountDict:
-            BODY_HTML = BODY_HTML + "<td style='text-align: center; width: 95px;'>" \
-                        + accountNum + "</td><td style='text-align: center;'>&Delta; %</td>"
-        elif accountNum == 'Others':
-            BODY_HTML = BODY_HTML + "<td style='text-align: center; width: 95px;'> \
-                        Other Accounts</td><td style='text-align: center;'>&Delta; %</td>"
-        elif accountNum == 'dayTotal':
-            BODY_HTML = BODY_HTML + "<td style='text-align: center; width: 95px;'> \
-                        All Accounts</td><td style='text-align: center;'>&Delta; %</td>"
-
-    BODY_HTML = BODY_HTML + "</tr>\n" # end row
-
-    # Generate the table contents for report/e-mail:
-
-    i_row=0
-
-    for reportDate in emailDisplayDict_input:
-
-        # Use different style for the LAST ROW
-        if reportDate == END_DATE or reportDate == YESTERDAY:
-            BODY_HTML = BODY_HTML + row_color(i_row) + "<td style='text-align: center; color: Teal'><i>" + reportDate + "*</i></td>"
-
-            for accountNum in displayList:
-                BODY_HTML = BODY_HTML + "<td style='text-align: right; padding: 4px; color: Teal'> \
-                            <i>$ {:,.2f}</i></td>".format(round(emailDisplayDict_input[reportDate][accountNum]['Cost'],2))
-
-                if emailDisplayDict_input[reportDate][accountNum]['percentDelta'] == None:
-                    BODY_HTML = BODY_HTML + "<td>&nbsp;</td>"
-                else:
-                    BODY_HTML = BODY_HTML + "<td style='text-align: right; padding: 4px; color: Teal'> \
-                                <i>{:.2%}</i></td>".format(emailDisplayDict_input[reportDate][accountNum]['percentDelta'])
-
-            BODY_HTML = BODY_HTML + "</tr>\n"
-
-            continue
-
-        #BODY_HTML = BODY_HTML + "<!-- Start of Report Date " + reportDate + " -->\n"
-        BODY_HTML = BODY_HTML + row_color(i_row) + "<td style='text-align: center;'>" + reportDate + "</td>"
-
-        # Use normal format for MIDDLE ROWS
-        for accountNum in displayList:
-            BODY_HTML = BODY_HTML + "<td style='text-align: right; padding: 4px;'> \
-                        $ {:,.2f}</td>".format(round(emailDisplayDict_input[reportDate][accountNum]['Cost'],2))
-
-            if emailDisplayDict_input[reportDate][accountNum]['percentDelta'] == None:
-                BODY_HTML = BODY_HTML + "<td>&nbsp;</td>"
-            else:
-                BODY_HTML = BODY_HTML + evaluate_change(emailDisplayDict_input[reportDate][accountNum]['percentDelta'])
-                #BODY_HTML = BODY_HTML + "<td style='text-align: right; padding: 4px'> \
-                #            {:.2%}</td>".format(emailDisplayDict_input[reportDate][accountNum]['percentDelta'])
-
-        BODY_HTML = BODY_HTML + "</tr>\n"
-
+        BODY_HTML += "</tr>"
         i_row += 1
 
-    BODY_HTML = BODY_HTML + "</table><br>\n"
+    BODY_HTML += "</table><br>"
+    BODY_HTML += f"<div style='font-size:12px; font-style:italic;'>Reporting Window: {MONTHLY_START_DATE} to {MONTHLY_END_DATE}</div>"
 
-    #print(BODY_HTML)
-
-    # * Note that total costs for this date are not reflected on this report.
-    BODY_HTML = BODY_HTML + "<div style='color: Teal; font-size: 12px; font-style: italic;'> \
-                * Note that total costs for this date are not reflected on this report.</div>\n"
+    # Print before returning
+    print("\n[DEBUG] create_report_html() HTML output (truncated to 500 chars):")
+    print(BODY_HTML, "...\n")
 
     return BODY_HTML
-    #return None
 
-# =================================================================================================
+# -----------------------------------------------------------------------------
+# 7) OPTIONAL: GET LINKED ACCOUNTS (PER-SERVICE)
+# -----------------------------------------------------------------------------
 
-#--------------------------------------------------------------------------------------------------
-# Get Linked Account Dimension values from Master Payer Cost Explorer
+def get_linked_accounts(account_list):
+    print("get_linked_accounts called.")
+    results = []
+    token = None
 
-def get_linked_accounts(accountList):
+    while True:
+        if token:
+            kwargs = {'NextPageToken': token}
+        else:
+            kwargs = {}
 
-  results = []	# holder for full linked account results
-  token = None	# holder for NextPageToken
-
-  while True:
-
-    if token:
-      kwargs = {'NextPageToken': token}   # get the NextPageToken
-    else:
-      kwargs = {} # empty if the NextPageToken does not exist
-
-    linked_accounts = cost_explorer.get_dimension_values(
-
-            # Get all linked account numbers in the time period requested
-            TimePeriod={'Start': START_DATE, 'End': END_DATE},
+        linked_accounts = cost_explorer.get_dimension_values(
+            TimePeriod={'Start': MONTHLY_START_DATE, 'End': MONTHLY_END_DATE},
             Dimension='LINKED_ACCOUNT',
             **kwargs
         )
+        results += linked_accounts['DimensionValues']
+        token = linked_accounts.get('NextPageToken')
+        if not token:
+            break
 
-    # Save results - active accounts in time period
-    results += linked_accounts['DimensionValues']
+    active_accounts = [item['Value'] for item in results]
+    defined_accounts = [acct for acct in account_list if acct in active_accounts]
 
-    token = linked_accounts.get('NextPageToken')
-    if not token:
-      break
+    print("Active accounts found:", active_accounts)
+    print("Filtered/defined accounts:", defined_accounts)
 
-    #print(results)
+    # Print before returning
+    print("\n[DEBUG] get_linked_accounts() return value:")
+    print(defined_accounts)
 
-  active_accounts = []	# holder for just linked account numbers
-  defined_accounts = []	# holder for reporting accounts
+    return defined_accounts
 
-  for accountnumbers in results:
-    #print(accountnumbers['Value'])
-    active_accounts.append(accountnumbers['Value'])
-
-  # use account number for report if it exists in dimension values
-  for accountnumbers in accountList:
-    if accountnumbers in active_accounts:
-      defined_accounts.append(accountnumbers)
-
-  #print(defined_accounts)
-
-  return defined_accounts
-
-
-#--------------------------------------------------------------------------------------------------
-# Get Cost Data from Master Payer Cost Explorer
+# -----------------------------------------------------------------------------
+# 8) GET COST DATA GROUPED BY ACCOUNT & SERVICE
+# -----------------------------------------------------------------------------
 
 def get_cost_data(account_numbers):
+    print("get_cost_data called with accounts:", account_numbers)
+    results = []
+    token = None
 
-  results = []	# holder for service costs
-  token = None	# holder for NextPageToken
+    while True:
+        if token:
+            kwargs = {'NextPageToken': token}
+        else:
+            kwargs = {}
 
-  while True:
+        data = cost_explorer.get_cost_and_usage(
+            TimePeriod={'Start': MONTHLY_START_DATE, 'End': MONTHLY_END_DATE},
+            Granularity='MONTHLY',
+            Metrics=['UnblendedCost'],
+            GroupBy=[
+                {'Type': 'DIMENSION', 'Key': 'LINKED_ACCOUNT'},
+                {'Type': 'DIMENSION', 'Key': 'SERVICE'}
+            ],
+            Filter={'Dimensions': {'Key': 'LINKED_ACCOUNT', 'Values': account_numbers}},
+            **kwargs
+        )
+        results += data['ResultsByTime']
+        token = data.get('NextPageToken')
+        if not token:
+            break
 
-    if token:
-      kwargs = {'NextPageToken': token}   # get the NextPageToken
+    print("Completed get_cost_data.")
 
-    else:
-      kwargs = {} # empty if the NextPageToken doesn' exist
+    # Print before returning
+    print("\n[DEBUG] get_cost_data() return value:")
+    print(results)
 
-    data = cost_explorer.get_cost_and_usage(
+    return results
 
-      # Monthly cost and grouped by Account and Service
-      TimePeriod={'Start': START_DATE, 'End': END_DATE},
-      #Granularity='DAILY',
-      Granularity='MONTHLY',
-      Metrics=['UnblendedCost'],
-      GroupBy=[
-        {'Type': 'DIMENSION', 'Key': 'LINKED_ACCOUNT'},
-        {'Type': 'DIMENSION', 'Key': 'SERVICE'}
-      ],
+# -----------------------------------------------------------------------------
+# 9) RESTRUCTURE COST DATA FOR PER-SERVICE
+# -----------------------------------------------------------------------------
 
-      # Filter using active accounts listed in MEDaily Spend View
-      Filter = {'Dimensions': {'Key': 'LINKED_ACCOUNT', 'Values': account_numbers}},
-      **kwargs)
+def restructure_cost_data(cost_data_dict, account_numbers):
+    print("restructure_cost_data called.")
+    display_cost_data_dict = {}
 
-    results += data['ResultsByTime']
-    #print(data['ResultsByTime'])
+    for acct in account_numbers:
+        display_cost_data_dict[acct] = {}
 
-    token = data.get('NextPageToken')
-    if not token:
-      break
+    # Collect all service names
+    for time_period in cost_data_dict:
+        for group in time_period['Groups']:
+            acct_no = group['Keys'][0]
+            service_name = group['Keys'][1]
+            if acct_no in display_cost_data_dict:
+                display_cost_data_dict[acct_no][service_name] = {}
 
-    #print(results)
+    # Fill in the costs by month
+    for time_period in cost_data_dict:
+        date = time_period['TimePeriod']['Start']
+        for group in time_period['Groups']:
+            acct_no = group['Keys'][0]
+            service_name = group['Keys'][1]
+            amount = float(group['Metrics']['UnblendedCost']['Amount'])
 
-  return results
+            if acct_no in display_cost_data_dict and service_name in display_cost_data_dict[acct_no]:
+                display_cost_data_dict[acct_no][service_name][date] = amount
 
+    # Sort service names
+    sorted_dict = {}
+    for acct_no, services in display_cost_data_dict.items():
+        sorted_services = dict(sorted(services.items()))
+        sorted_dict[acct_no] = sorted_services
 
-#--------------------------------------------------------------------------------------------------
+    print("Completed restructure_cost_data.")
 
-def restructure_cost_data(cost_data_Dict, account_numbers):
+    # Print before returning
+    print("\n[DEBUG] restructure_cost_data() return value:")
+    print(sorted_dict)
 
-  display_cost_data_Dict = {}             # holder for restructured dictionary for e-mail/display
-  sorted_display_cost_data_Dict = {}      # holder for sorted dictionary for e-mail/display
+    return sorted_dict
 
-  # use account numbers as main dictionary keys
-  for account in account_numbers:
-    display_cost_data_Dict.update({account: {}})
+# -----------------------------------------------------------------------------
+# 10) GENERATE HTML TABLE FOR PER-SERVICE BREAKDOWN
+# -----------------------------------------------------------------------------
 
-  # use service names as second dictionary keys
-  for timeperiods in cost_data_Dict:
-    #print(timeperiods)
+def generate_html_table(cost_data_dict, display_cost_data_dict):
+    print("generate_html_table called.")
 
-    for cost in timeperiods['Groups']:
-      #print(cost)
-      account_no = cost['Keys'][0]		# Account Number
-      account_name = cost['Keys'][1]		# Service Name
+    sorted_months = sorted([rbt['TimePeriod']['Start'] for rbt in cost_data_dict])
+    num_months = len(sorted_months)
+    columns = (num_months * 1) + (num_months - 1)
 
-      #print(account_no + " " + account_name)
-      try:
-        display_cost_data_Dict[account_no].update({account_name: {}})
-      except:
-        continue
+    def evaluate_change(value):
+        if value is None:
+            return "<td>&nbsp;</td>"
+        elif value < -0.15:
+            return f"<td style='text-align:right; color:Navy; font-weight:bold;'>{value:.2%}</td>"
+        elif -0.15 <= value < -0.10:
+            return f"<td style='text-align:right; color:Blue; font-weight:bold;'>{value:.2%}</td>"
+        elif -0.10 <= value < -0.05:
+            return f"<td style='text-align:right; color:DodgerBlue; font-weight:bold;'>{value:.2%}</td>"
+        elif -0.05 <= value < -0.02:
+            return f"<td style='text-align:right; color:DeepSkyBlue; font-weight:bold;'>{value:.2%}</td>"
+        elif -0.02 <= value <= 0.02:
+            return f"<td style='text-align:right;'>{value:.2%}</td>"
+        elif 0.02 < value <= 0.05:
+            return f"<td style='text-align:right; color:Orange; font-weight:bold;'>{value:.2%}</td>"
+        elif 0.05 < value <= 0.10:
+            return f"<td style='text-align:right; color:DarkOrange; font-weight:bold;'>{value:.2%}</td>"
+        elif 0.10 < value <= 0.15:
+            return f"<td style='text-align:right; color:OrangeRed; font-weight:bold;'>{value:.2%}</td>"
+        elif value > 0.15:
+            return f"<td style='text-align:right; color:Red; font-weight:bold;'>{value:.2%}</td>"
+        else:
+            return f"<td style='text-align:right;'>{value:.2%}</td>"
 
-  # for each service, save costs per period
-  for timeperiods in cost_data_Dict:
-    #print(timeperiods)
-    date = timeperiods['TimePeriod']['Start']
+    def row_color(i_row):
+        return "<tr style='background-color:WhiteSmoke;'>" if (i_row % 2) == 0 else "<tr>"
 
-    for cost in timeperiods['Groups']:
-      #print(cost)
-      account_no = cost['Keys'][0]							# Account Number
-      account_name = cost['Keys'][1]							# Service Name
-      amount = cost['Metrics']['UnblendedCost']['Amount']		# Period Cost
+    emailHTML = "<h2>AWS Monthly Cost Report - Per Service Breakdown</h2>"
+    emailHTML += f'<table border="1" style="border-collapse:collapse; font-family:Arial,sans-serif;">'
 
-      #print(account_no + " " + account_name)
-      try:
-        display_cost_data_Dict[account_no][account_name].update({date: amount})
-      except:
-        continue
+    for acct_no, services in display_cost_data_dict.items():
+        acct_name = accountDict.get(acct_no, acct_no)
+        # Header for this account
+        emailHTML += f'<tr style="background-color:SteelBlue;"><td colspan="{columns}" style="text-align:center; font-weight:bold;">'
+        emailHTML += f'{acct_name} ({acct_no})</td></tr>'
 
-    # sort the dictionary (per service) for each account
-  for accounts in display_cost_data_Dict:
-      #print(accounts)
-      sorted_display_cost_data_Dict.update({accounts:{}})
-      sorted_display_cost_data_Dict[accounts].update(sorted(display_cost_data_Dict[accounts].items()))
-  
-  #return display_cost_data_Dict
-  return sorted_display_cost_data_Dict
+        # Subheader row
+        emailHTML += '<tr style="background-color:LightSteelBlue;">'
+        emailHTML += '<td style="text-align:center; font-weight:bold;">Service Name</td>'
+        for idx, m in enumerate(sorted_months):
+            if idx > 0:
+                emailHTML += '<td style="text-align:center;">Δ%</td>'
+            emailHTML += f'<td style="text-align:center; font-weight:bold;">{m}</td>'
+        emailHTML += '</tr>'
 
+        i_row = 0
+        for svc, monthly_data in services.items():
+            row_html = row_color(i_row)
+            row_html += f'<td style="text-align:left;">{svc}</td>'
 
-#--------------------------------------------------------------------------------------------------
-# Generate Table HTML Codes for e-mail formatting
+            prev_cost = None
+            for idx, m in enumerate(sorted_months):
+                curr_cost = monthly_data.get(m, 0.0)
+                if idx > 0:
+                    if prev_cost and prev_cost != 0 and curr_cost != 0:
+                        pct_change = (curr_cost / prev_cost) - 1
+                        row_html += evaluate_change(pct_change)
+                    else:
+                        row_html += '<td>&nbsp;</td>'
+                row_html += f'<td style="text-align:right; padding:4px;">$ {curr_cost:,.2f}</td>'
+                prev_cost = curr_cost
 
-def generate_html_table(cost_data_Dict, display_cost_data_Dict):
+            row_html += '</tr>'
+            emailHTML += row_html
+            i_row += 1
 
-    # Function to create styles depending on percent change
-  def evaluate_change(value):
-    if value < -.15:
-      text_out = "<td style='text-align: right; padding: 4px; color: Navy; font-weight: bold;'>{:.2%}</td>".format(value)
-    elif -.15 <= value < -.10:
-      text_out = "<td style='text-align: right; padding: 4px; color: Blue; font-weight: bold;'>{:.2%}</td>".format(value)
-    elif -.10 <= value < -.05:
-      text_out = "<td style='text-align: right; padding: 4px; color: DodgerBlue; font-weight: bold;'>{:.2%}</td>".format(value)
-    elif -.05 <= value < -.02:
-      text_out = "<td style='text-align: right; padding: 4px; color: DeepSkyBlue; font-weight: bold;'>{:.2%}</td>".format(value)
-    elif -.02 <= value <= .02:
-      text_out = "<td style='text-align: right; padding: 4px;'>{:.2%}</td>".format(value)
-    elif .02 < value <= .05:
-      text_out = "<td style='text-align: right; padding: 4px; color: Orange; font-weight: bold;'>{:.2%}</td>".format(value)
-    elif .05 < value <= .10:
-      text_out = "<td style='text-align: right; padding: 4px; color: DarkOrange; font-weight: bold;'>{:.2%}</td>".format(value)
-    elif .10 < value <= .15:
-      text_out = "<td style='text-align: right; padding: 4px; color: OrangeRed; font-weight: bold;'>{:.2%}</td>".format(value)
-    elif value > .15:
-      text_out = "<td style='text-align: right; padding: 4px; color: Red; font-weight: bold;'>{:.2%}</td>".format(value)
-    else:
-      text_out = "<td style='text-align: right; padding: 4px;'>{:.2%}</td>".format(value)
+    emailHTML += '</table>'
+    print("Completed generate_html_table.")
 
-    return text_out
+    # Print before returning
+    print("\n[DEBUG] generate_html_table() HTML output (truncated to 500 chars):")
+    print(emailHTML, "...\n")
 
-    # Function to color rows
-  def row_color(i_row):
-    if (i_row % 2) == 0:
-      return "<tr style='background-color: WhiteSmoke;'>"
-    else:
-      return "<tr>"
+    return emailHTML
 
-
-  # Start HTML table
-  emailHTML = '<h2>AWS Daily Cost Report for Accounts - Per Service Breakdown</h2>' + \
-        '<table border="1" style="border-collapse: collapse;">'
-
-  for accounts in display_cost_data_Dict:
-    #print(accounts)
-
-    # table headers
-    emailHTML = emailHTML + '<tr style="background-color: SteelBlue;">' + \
-          '<td colspan="' + str(COLUMNS) + '" style="text-align: center; font-weight: bold">' + \
-                    accountDict[accounts] + ' (' + accounts + ')</td></tr>'
-          #accountDict[accounts] + ' - ' + accounts + ' | ' + accountMailDict[accounts] + '</td></tr>'
-    emailHTML = emailHTML + '<tr style="background-color: LightSteelBlue;">' + \
-          '<td style="text-align: center; font-weight: bold">Service Name</td>'
-
-    # timeperiod headers
-    for timeperiods in cost_data_Dict:
-
-      if timeperiods['TimePeriod']['Start'] != START_DATE:
-        emailHTML = emailHTML + '<td style="text-align: center;">&Delta; %</td>'
-
-      emailHTML = emailHTML + '<td style="text-align: center; font-weight: bold">' + timeperiods['TimePeriod']['Start']
-      
-      if timeperiods['TimePeriod']['Start'] == END_DATE or timeperiods['TimePeriod']['Start'] == YESTERDAY:
-          emailHTML = emailHTML + '*'
-      
-      emailHTML = emailHTML + '</td>'
-      
-
-    emailHTML = emailHTML + '</tr>'
-
-    i_row = 0	# row counter for tracking row background color
-
-      # services and costs per timeperiod
-    for service in display_cost_data_Dict[accounts]:
-
-      rsrcrowHTML = ''		# Resource row HTML code
-      tdcostvalues = []		# List of <td> cost values for tracking zeros
-
-      # Based on service (Refund or Tax) or row count, pick a background color
-      if service == 'Refund' or service == 'Tax':
-        rsrcrowHTML = rsrcrowHTML + '<tr style="font-style: italic; background-color: Linen;">'
-      else:
-        rsrcrowHTML = rsrcrowHTML + row_color(i_row)
-
-      # Leading the row with Service Name
-      rsrcrowHTML = rsrcrowHTML + '<td style="text-align: left;">' + service + '</td>'
-
-      prevdaycost = None	# previous month cost
-      currdaycost = 0.0	# current month cost
-      pctfrmprev = 0.0	# percentage delta from previous to curent day
-
-      for timeperiods in cost_data_Dict:
-        date = timeperiods['TimePeriod']['Start']
-
-        # Calculate delta(s) after the first month <td>
-        if prevdaycost is not None:
-
-          try:
-            currdaycost = round(float(display_cost_data_Dict[accounts][service][date]),2)
-          except:
-            currdaycost = 0
-
-          # Calculate % if previous and current costs are not zero
-          if prevdaycost != 0 and currdaycost != 0:
-            pctfrmprev = (currdaycost / prevdaycost) - 1
-            rsrcrowHTML = rsrcrowHTML + evaluate_change(pctfrmprev)
-          else:
-            rsrcrowHTML = rsrcrowHTML + '<td>&nbsp;</td>'
-
-        try:
-          cost_td = round(float(display_cost_data_Dict[accounts][service][date]),2)
-          prevdaycost = (round(float(display_cost_data_Dict[accounts][service][date]),2))
-        except:
-          cost_td = 0
-          prevdaycost = 0
-
-        rsrcrowHTML = rsrcrowHTML + '<td style="text-align: right; padding: 4px;">'
-        rsrcrowHTML = rsrcrowHTML + "$ {:,.2f}".format(cost_td) + '</td>'
-        tdcostvalues.append("$ {:,.2f}".format(cost_td))
-
-      rsrcrowHTML = rsrcrowHTML + '</tr>'
-
-      # Check if all cost values in the row are the same
-      allSame = False;
-      if len(tdcostvalues) > 0:
-        allSame = all(elem == tdcostvalues[0] for elem in tdcostvalues)
-
-      # If all values are zero, skip row
-      if allSame:
-        if tdcostvalues[0] == "$ 0.00":
-          continue
-
-      emailHTML = emailHTML + rsrcrowHTML		# Include row for displaying
-      i_row += 1								# row counter
-
-  emailHTML = emailHTML + '</table>'
-
-  return emailHTML
-
-# =================================================================================================
-
-#--------------------------------------------------------------------------------------------------
-# Compile and send HTML E-mail
+# -----------------------------------------------------------------------------
+# 11) SEND REPORT VIA SES
+# -----------------------------------------------------------------------------
 
 def send_report_email(BODY_HTML):
+    print("Sending report via SES...")
 
-    SENDER = os.environ['SENDER']
-    RECIPIENT = os.environ['RECIPIENT']
-    RECIPIENT2 = os.environ['RECIPIENT2']
-    AWS_REGION = os.environ['AWS_REGION']
-    SUBJECT = "AWS Daily Cost Report for Selected Accounts"
+    SENDER = os.environ.get('SENDER', 'no-reply@example.com')
+    RECIPIENT = os.environ.get('RECIPIENT', 'you@example.com')
+    AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+    SUBJECT = "AWS Monthly Cost Report for Selected Accounts"
+    BODY_TEXT = "AWS Cost Report (HTML Email)."
 
-    # The email body for recipients with non-HTML email clients.
-    BODY_TEXT = ("Amazon SES\r\n"
-                "An HTML email was sent to this address."
-                )
+    print(f"SENDER={SENDER}, RECIPIENT={RECIPIENT}, REGION={AWS_REGION}")
 
-    # The character encoding for the email.
-    CHARSET = "UTF-8"
+    client = boto3.client('ses', region_name=AWS_REGION)
 
-    # Create a new SES resource and specify a region.
-    client = boto3.client('ses',region_name=AWS_REGION)
-
-    # Try to send the email.
     try:
-        #Provide the contents of the email.
         response = client.send_email(
-            Destination={
-                'ToAddresses': [
-                    RECIPIENT,
-                    RECIPIENT2,
-                ],
-            },
+            Destination={'ToAddresses': [RECIPIENT]},
             Message={
                 'Body': {
-                    'Html': {
-                        'Charset': CHARSET,
-                        'Data': BODY_HTML,
-                    },
-                    'Text': {
-                        'Charset': CHARSET,
-                        'Data': BODY_TEXT,
-                    },
+                    'Html': {'Charset': "UTF-8", 'Data': BODY_HTML},
+                    'Text': {'Charset': "UTF-8", 'Data': BODY_TEXT},
                 },
-                'Subject': {
-                    'Charset': CHARSET,
-                    'Data': SUBJECT,
-                },
+                'Subject': {'Charset': "UTF-8", 'Data': SUBJECT},
             },
-            Source=SENDER,
-
+            Source=SENDER
         )
-    # Display an error if something goes wrong.
+        print("Email sent! Message ID:", response['MessageId'])
     except ClientError as e:
-        print(e.response['Error']['Message'])
-    else:
-        print("Email sent! Message ID:"),
-        print(response['MessageId'])
+        print("SES send_email Error:", e.response['Error']['Message'])
 
+# -----------------------------------------------------------------------------
+# 12) LAMBDA HANDLER
+# -----------------------------------------------------------------------------
 
-#--------------------------------------------------------------------------------------------------
-# Lambda Handler
+def lambda_handler(event=None, context=None):
+    print("=== Starting Lambda Execution ===")
 
-def lambda_handler(context=None, event=None):
-
-    # Using dictionary of 23 named accounts, get cost info from Cost Explorer
-    # Result is dictionary keyed by account number
+    # 1) Summarize monthly cost per account
     mainCostDict = ce_get_costinfo_per_account(accountDict)
+    print("mainCostDict:", mainCostDict)
 
-    print(mainCostDict)
+    # 2) Re-sort data by month
+    mainMonthlyDict = process_costchanges_per_month(mainCostDict)
+    print("mainMonthlyDict:", mainMonthlyDict)
 
-    # Re-sort the mainCostDict; create a new dictionary keyed by reporting date
-    mainDailyDict = process_costchanges_per_day(mainCostDict)
+    # 3) Combine 'Others' + 'monthTotal'
+    mainDisplayDict = process_costchanges_for_display(mainMonthlyDict)
+    print("mainDisplayDict:", mainDisplayDict)
 
-    print(mainDailyDict)
+    # 4) Add monthly % changes
+    finalDisplayDict = process_percentchanges_per_month(mainDisplayDict)
+    print("finalDisplayDict:", finalDisplayDict)
 
-    # Create a new dictionary (from mainDailyDict) with only big cost accounts labeled
-    # Combine other accounts into "Others"
-    mainDisplayDict = process_costchanges_for_display(mainDailyDict)
-
-    print(mainDisplayDict)
-
-    # Update mainDisplayDict dictionary to include daily percent changes
-    finalDisplayDict = process_percentchanges_per_day(mainDisplayDict)
-
-    print(finalDisplayDict)
-
-    # Generate HTML code using finalDisplayDict and send HTML e-mail
+    # 5) Build the summary HTML
     summary_html = create_report_html(finalDisplayDict, BODY_HTML)
+    print("summary_html (first 300 chars):", summary_html)
 
-
-    # =============================================================================================
-
-    account_numbers = get_linked_accounts(accountList)
-
-    print(account_numbers)
-
-    # Get cost data from the Master Payer Account
+    # 6) Per-service breakdown
+    account_numbers = list(accountDict.keys())
     cost_data_Dict = get_cost_data(account_numbers)
-
-    print(cost_data_Dict)
-
-    # Restruction dictionary for email message display
+    print("cost_data_Dict:", cost_data_Dict)
+    
     display_cost_data_Dict = restructure_cost_data(cost_data_Dict, account_numbers)
+    print("display_cost_data_Dict:", display_cost_data_Dict)
 
-    print(display_cost_data_Dict)
+    breakdown_html = generate_html_table(cost_data_Dict, display_cost_data_Dict)
+    print("breakdown_html (first 300 chars):", breakdown_html)
 
-    # Put the restructured dictionary in HTML table
-    html_for_email = generate_html_table(cost_data_Dict, display_cost_data_Dict)
+    # Combine and send
+    combined_html = summary_html + '<br><br>' + breakdown_html
+    print("combined_html (first 300 chars):", combined_html)
 
-    html_for_email = summary_html + '<br><br>' + html_for_email
+    send_report_email(combined_html)
 
-    # Send HTML e-mail
-    send_report_email(html_for_email)
+    print("=== Completed Lambda Execution ===")
+
+    return {
+        'statusCode': 200,
+        'body': 'Monthly Cost Report Sent!'
+    }
