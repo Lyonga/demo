@@ -1,0 +1,91 @@
+To address the task effectively, follow these steps to quantify the potential savings from adopting your FSx cost optimization recommendations. This involves calculating percentage and monetary gains to present actionable decision points:
+1. Analyze Current Usage
+
+Gather data on the following metrics:
+
+    Current FSx Storage Capacity (SSD or HDD): Total provisioned capacity and used capacity.
+    Throughput Capacity: Current throughput level and average utilization.
+    Deduplication Status: Check if deduplication is enabled.
+    Backup Costs: Current backup size and frequency.
+    Data Transfer Costs: Analyze cross-AZ and peering transfer traffic.
+
+Use AWS Cost Explorer, CloudWatch metrics, and FSx Console to collect these details.
+2. Simulate Savings Metrics
+
+Based on the recommendations, calculate potential cost savings for each recommendation:
+A. Data Deduplication
+
+    Estimation Formula:
+    Savings Percentage=Expected Deduplication Efficiency (e.g., 30-50%)×Current Storage Cost
+    Savings Percentage=Expected Deduplication Efficiency (e.g., 30-50%)×Current Storage Cost
+        For user documents, assume a savings range of 30-50%.
+        For software development datasets/logs, assume 70-80%.
+        Savings in monetary value: Multiply the savings percentage by the storage cost.
+    Example: If your current monthly storage cost is $5,000, enabling deduplication with 50% efficiency could save:
+    50%×5000=2500 USD/month
+    50%×5000=2500 USD/month
+
+B. HDD Storage Class vs. SSD
+
+    Estimation Formula:
+    Savings Percentage=SSD Price - HDD PriceSSD Price×100
+    Savings Percentage=SSD PriceSSD Price - HDD Price​×100
+        HDD pricing is typically up to 50% lower than SSD. Use AWS pricing documentation for specific comparisons.
+        If SSD monthly cost is $1,000 and HDD cost is $500:
+        Savings Percentage=1000−5001000×100=50%
+        Savings Percentage=10001000−500​×100=50%
+
+C. Scaling Storage and Throughput
+
+    Identify the average throughput utilization (use CloudWatch metrics).
+    Compare the current provisioned capacity with actual usage to estimate over-provisioning.
+    Estimation Formula:
+    Savings=(Provisioned Capacity - Average Usage)×Unit Cost
+    Savings=(Provisioned Capacity - Average Usage)×Unit Cost Example:
+        Provisioned throughput: 128 MBps at $0.12/MBps.
+        Average usage: 64 MBps.
+        Monthly cost savings:
+        (128−64)×0.12×720=552.96 USD/month
+        (128−64)×0.12×720=552.96 USD/month
+    (Assuming 720 hours/month).
+
+3. Create a Savings Report
+
+Compile the findings into a detailed report with the following structure:
+A. Summary of Current Costs
+
+    Current monthly FSx costs (storage, throughput, backups, data transfers).
+    Current deduplication status (enabled/disabled).
+    Over-provisioning metrics (storage/throughput).
+
+B. Savings Metrics
+
+Provide detailed estimates of potential savings:
+
+    Deduplication: Highlight savings percentage and monetary value.
+    HDD Storage Class: Highlight savings from using HDD over SSD.
+    Scaling Provisioned Capacity: Show monetary savings from optimizing storage and throughput.
+
+C. Actionable Recommendations
+
+    Enable deduplication for suitable datasets.
+    Switch to HDD storage where performance requirements allow.
+    Use CloudWatch to monitor and dynamically scale storage and throughput.
+
+D. Visualize Findings
+
+    Include charts or graphs to show:
+        Current vs. Optimized Costs.
+        Percentage of savings per recommendation.
+
+4. Example Metrics Table
+Recommendation	Current Cost (USD)	Savings (%)	Savings (USD/Month)
+Deduplication	$5,000	50%	$2,500
+HDD Storage Class	$1,000	50%	$500
+Scaling Throughput	$1,000	45%	$450
+5. Validate Findings
+
+    Confirm assumptions with real FSx usage data.
+    Adjust the savings percentage ranges based on actual dataset characteristics and AWS pricing.
+
+By presenting these metrics, you’ll give clear decision points for adopting cost-saving measures and justify the effort with quantifiable outcomes. Let me know if you'd like a template or specific AWS CLI/CloudWatch queries to assist in data collection!
