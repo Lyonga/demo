@@ -1,6 +1,7 @@
-Start-Process : This command cannot be run due to the error: The system cannot find the file specified.
-At line:1 char:1
-+ Start-Process -FilePath $installer-ArgumentList '/install', '/quiet', ...
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidOperation: (:) [Start-Process], InvalidOperationException
-    + FullyQualifiedErrorId : InvalidOperationException,Microsoft.PowerShell.Commands.StartProcessCommand
+tags = merge(
+    {
+      Name = "${var.stack_name}-windows-instance-${var.team}"
+      DomainJoin = "true"
+    },
+    local.default_tags
+  )
