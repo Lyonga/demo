@@ -7,27 +7,20 @@ from botocore.exceptions import ClientError
 # 1) GLOBAL CONSTANTS AND SETUP
 # -----------------------------------------------------------------------------
 
-# Initialize the Cost Explorer client
 cost_explorer = boto3.client('ce')
 
-# For monthly cost reporting, define how many months back to report
-MONTHSBACK = 9  # e.g., 9 months back
-
-# Determine the first day of the current month
+MONTHSBACK = 2  # We compare exactly 2 months
 today = datetime.now()
 first_of_this_month = today.replace(day=1)
 
-# The start date is "MONTHSBACK months ago," adjusted to the 1st of that month
 start_date = (first_of_this_month - timedelta(days=MONTHSBACK * 30)).replace(day=1)
-end_date = first_of_this_month  # i.e., 1st day of current month
+end_date = first_of_this_month
 
-# Convert these to strings for Cost Explorer
 MONTHLY_START_DATE = start_date.strftime('%Y-%m-%d')
 MONTHLY_END_DATE = end_date.strftime('%Y-%m-%d')
 
 print(f"Monthly reporting range: {MONTHLY_START_DATE} to {MONTHLY_END_DATE}")
 
-# Generate a list of monthly boundaries (the 1st) for the reporting window
 MONTHLY_COST_DATES = []
 temp_date = start_date
 while temp_date < end_date:
@@ -37,22 +30,18 @@ while temp_date < end_date:
 
 print("MONTHLY_COST_DATES:", MONTHLY_COST_DATES)
 
-# These are the AWS accounts you want to track, with friendly names
 accountDict = {
     '384352530920': 'AWS-Workloads-Dev',
     '454229460814': 'AWS-Workloads-QA',
     '235163852221': 'AWS-Workloads-Prod'
 }
 
-# (Optional) Email mapping if you need to send separate mails per account
 accountMailDict = {
     '384352530920': 'clyonga@nglic.com',
     '454229460814': 'clyonga@nglic.com',
     '235163852221': 'clyonga@nglic.com'
 }
 
-# This display list indicates how columns will appear in the summary
-# The final 'monthTotal' is a synthetic key for total monthly cost
 displayListMonthly = [
     '384352530920',
     '454229460814',
@@ -60,18 +49,21 @@ displayListMonthly = [
     'monthTotal'
 ]
 
-# A base HTML heading for your email
 BODY_HTML = '<h2>AWS Monthly Cost Report for Accounts - Summary</h2>'
 
+# # If you want to change the tag filter (e.g. "project=Traverse"), set them here:
+# TEAM_TAG_KEY = "Service-Name"
+# #TEAM_TAG_VALUE = "modern-data-architecture"
+# TEAM_TAG_VALUE = "eloquence"
+
+TEAM_TAG_KEY = "Project"
+TEAM_TAG_VALUE = "core" ##"id3-datapipeline"
+
 # -----------------------------------------------------------------------------
-# 2) RETRIEVE COST INFO PER ACCOUNT (Summary)
+# 2) RETRIEVE COST INFO PER ACCOUNT (Summary Table)
 # -----------------------------------------------------------------------------
 
 def ce_get_costinfo_per_account(accountDict_input):
-    """
-    For each account in accountDict_input, call Cost Explorer with Granularity=MONTHLY.
-    Return a dictionary keyed by account ID, containing the Cost Explorer response.
-    """
     accountCostDict = {}
 
     for acct_id in accountDict_input:
@@ -91,10 +83,6 @@ def ce_get_costinfo_per_account(accountDict_input):
             Metrics=['UnblendedCost']
         )
 
-        # Print the raw response for debugging (comment out if too verbose)
-        # print(response)
-
-        # Sum up the total cost across all monthly buckets
         period_cost = 0.0
         for month_data in response['ResultsByTime']:
             cost_val = float(month_data['Total']['UnblendedCost']['Amount'])
@@ -102,11 +90,14 @@ def ce_get_costinfo_per_account(accountDict_input):
 
         print(f"Cost of account {acct_id} for the period {MONTHLY_START_DATE} to {MONTHLY_END_DATE} is: {period_cost}")
 
-        # Only store if cost > 0 for that period
         if period_cost > 0:
             accountCostDict[acct_id] = response
 
     print("Completed ce_get_costinfo_per_account. accountCostDict keys:", list(accountCostDict.keys()))
+
+    print("\n[DEBUG] ce_get_costinfo_per_account() return value:")
+    print(accountCostDict)
+
     return accountCostDict
 
 # -----------------------------------------------------------------------------
@@ -114,18 +105,11 @@ def ce_get_costinfo_per_account(accountDict_input):
 # -----------------------------------------------------------------------------
 
 def process_costchanges_per_month(accountCostDict_input):
-    """
-    Takes the dictionary from ce_get_costinfo_per_account and reorganizes it
-    into a dictionary keyed by each month's start date, containing per-account costs.
-    Also adds 'monthTotal' to each month's dict.
-    """
     reportCostDict = {}
 
-    # Initialize dictionary for each monthly boundary in the window
     for date_str in MONTHLY_COST_DATES:
         reportCostDict[date_str] = {}
 
-    # Populate monthly costs
     for acct_id, response_data in accountCostDict_input.items():
         for month_data in response_data['ResultsByTime']:
             start_str = month_data['TimePeriod']['Start']
@@ -135,7 +119,6 @@ def process_costchanges_per_month(accountCostDict_input):
                 'Cost': float(month_data['Total']['UnblendedCost']['Amount'])
             }
 
-    # Calculate monthly total
     for date_str in reportCostDict:
         month_total = 0.0
         for acct_id in reportCostDict[date_str]:
@@ -143,18 +126,17 @@ def process_costchanges_per_month(accountCostDict_input):
         reportCostDict[date_str]['monthTotal'] = {'Cost': month_total}
 
     print("Completed process_costchanges_per_month. Keys in reportCostDict:", list(reportCostDict.keys()))
+
+    print("\n[DEBUG] process_costchanges_per_month() return value:")
+    print(reportCostDict)
+
     return reportCostDict
 
 # -----------------------------------------------------------------------------
-# 4) FORMAT COSTS FOR "DISPLAY" (E.G. SHOW ONLY SPECIFIC ACCOUNTS & 'Others')
+# 4) FORMAT COSTS FOR "DISPLAY"
 # -----------------------------------------------------------------------------
 
 def process_costchanges_for_display(reportCostDict_input):
-    """
-    Takes the monthly dictionary from process_costchanges_per_month,
-    merges lesser-seen accounts into 'Others' unless they're in displayListMonthly.
-    Returns a dictionary with the same months, but only the keys in displayListMonthly + 'Others'.
-    """
     displayReportCostDict = {}
 
     for date_str in reportCostDict_input:
@@ -167,10 +149,13 @@ def process_costchanges_for_display(reportCostDict_input):
             else:
                 others_cost += cost_obj['Cost']
 
-        # Add 'Others' line for any accounts not in displayListMonthly
         displayReportCostDict[date_str]['Others'] = {'Cost': others_cost}
 
     print("Completed process_costchanges_for_display.")
+
+    print("\n[DEBUG] process_costchanges_for_display() return value:")
+    print(displayReportCostDict)
+
     return displayReportCostDict
 
 # -----------------------------------------------------------------------------
@@ -178,17 +163,12 @@ def process_costchanges_for_display(reportCostDict_input):
 # -----------------------------------------------------------------------------
 
 def process_percentchanges_per_month(reportCostDict_input):
-    """
-    For each month (after the earliest), compute the percentage change relative to the previous month.
-    Store it in 'percentDelta' for each account. If last month or current month cost = 0, store None.
-    """
     sorted_months = sorted(reportCostDict_input.keys())
     print("Calculating percent changes across months:", sorted_months)
 
     for i in range(len(sorted_months)):
         curr_month = sorted_months[i]
         if i == 0:
-            # First month in the list won't have a previous month
             for acct_id in reportCostDict_input[curr_month]:
                 reportCostDict_input[curr_month][acct_id]['percentDelta'] = None
         else:
@@ -207,18 +187,17 @@ def process_percentchanges_per_month(reportCostDict_input):
                     reportCostDict_input[curr_month][acct_id]['percentDelta'] = delta
 
     print("Completed process_percentchanges_per_month.")
+
+    print("\n[DEBUG] process_percentchanges_per_month() return value:")
+    print(reportCostDict_input)
+
     return reportCostDict_input
 
 # -----------------------------------------------------------------------------
-# 6) CREATE HTML REPORT (SUMMARY TABLE)
+# 6) CREATE SUMMARY HTML REPORT
 # -----------------------------------------------------------------------------
 
 def create_report_html(emailDisplayDict_input, BODY_HTML):
-    """
-    Builds an HTML summary table of monthly costs for each account in displayListMonthly,
-    plus the Others row, plus the monthTotal row. Includes percentDelta if available.
-    """
-
     print("Generating summary HTML report...")
 
     def evaluate_change(value):
@@ -274,7 +253,6 @@ def create_report_html(emailDisplayDict_input, BODY_HTML):
             BODY_HTML += "<td style='text-align:center;width:95px;'>Others</td><td style='text-align:center;'>&Delta;%</td>"
     BODY_HTML += "</tr>"
 
-    # Sort the months in ascending order
     sorted_months = sorted(emailDisplayDict_input.keys())
     i_row = 0
     for month_str in sorted_months:
@@ -293,26 +271,23 @@ def create_report_html(emailDisplayDict_input, BODY_HTML):
 
     BODY_HTML += "</table><br>"
     BODY_HTML += f"<div style='font-size:12px; font-style:italic;'>Reporting Window: {MONTHLY_START_DATE} to {MONTHLY_END_DATE}</div>"
+
+    print("\n[DEBUG] create_report_html() HTML output:")
+    print(BODY_HTML, "\n")
+
     return BODY_HTML
 
 # -----------------------------------------------------------------------------
-# 7) OPTIONAL: GET LINKED ACCOUNTS (PER-SERVICE GROUPING)
+# 7) GET LINKED ACCOUNTS, GET COST DATA, RESTRUCTURE, ETC. (Unchanged)
 # -----------------------------------------------------------------------------
 
 def get_linked_accounts(account_list):
-    """
-    Discovers which accounts are active in the time period, based on dimension values.
-    """
     print("get_linked_accounts called.")
     results = []
     token = None
 
     while True:
-        if token:
-            kwargs = {'NextPageToken': token}
-        else:
-            kwargs = {}
-
+        kwargs = {'NextPageToken': token} if token else {}
         linked_accounts = cost_explorer.get_dimension_values(
             TimePeriod={'Start': MONTHLY_START_DATE, 'End': MONTHLY_END_DATE},
             Dimension='LINKED_ACCOUNT',
@@ -328,26 +303,19 @@ def get_linked_accounts(account_list):
 
     print("Active accounts found:", active_accounts)
     print("Filtered/defined accounts:", defined_accounts)
+
+    print("\n[DEBUG] get_linked_accounts() return value:")
+    print(defined_accounts)
+
     return defined_accounts
 
-# -----------------------------------------------------------------------------
-# 8) GET COST DATA GROUPED BY ACCOUNT & SERVICE (PER-SERVICE BREAKDOWN)
-# -----------------------------------------------------------------------------
-
 def get_cost_data(account_numbers):
-    """
-    Retrieves monthly cost usage grouped by account and service.
-    """
     print("get_cost_data called with accounts:", account_numbers)
     results = []
     token = None
 
     while True:
-        if token:
-            kwargs = {'NextPageToken': token}
-        else:
-            kwargs = {}
-
+        kwargs = {'NextPageToken': token} if token else {}
         data = cost_explorer.get_cost_and_usage(
             TimePeriod={'Start': MONTHLY_START_DATE, 'End': MONTHLY_END_DATE},
             Granularity='MONTHLY',
@@ -365,21 +333,63 @@ def get_cost_data(account_numbers):
             break
 
     print("Completed get_cost_data.")
+    print("\n[DEBUG] get_cost_data() return value:")
+    print(results)
+
     return results
 
 # -----------------------------------------------------------------------------
-# 9) RESTRUCTURE COST DATA FOR PER-SERVICE BREAKDOWN
+# 8) NEW: GET TAGGED COST DATA
+# -----------------------------------------------------------------------------
+
+def get_tagged_cost_data(account_numbers, tag_key, tag_value):
+    """
+    Retrieves cost data for the same month range, but filters only resources
+    with tag_key=tag_value. Grouped by (LINKED_ACCOUNT, SERVICE).
+    """
+    print(f"get_tagged_cost_data called for tag {tag_key}={tag_value}")
+    results = []
+    token = None
+
+    combined_filter = {
+        "And": [
+            {"Dimensions": {"Key": "LINKED_ACCOUNT", "Values": account_numbers}},
+            {"Tags": {"Key": tag_key, "Values": [tag_value]}}
+        ]
+    }
+
+    while True:
+        kwargs = {'NextPageToken': token} if token else {}
+        data = cost_explorer.get_cost_and_usage(
+            TimePeriod={'Start': MONTHLY_START_DATE, 'End': MONTHLY_END_DATE},
+            Granularity='MONTHLY',
+            Metrics=['UnblendedCost'],
+            GroupBy=[
+                {'Type': 'DIMENSION', 'Key': 'LINKED_ACCOUNT'},
+                {'Type': 'DIMENSION', 'Key': 'SERVICE'}
+            ],
+            Filter=combined_filter,
+            **kwargs
+        )
+        results += data['ResultsByTime']
+        token = data.get('NextPageToken')
+        if not token:
+            break
+
+    print("Completed get_tagged_cost_data.")
+    print("\n[DEBUG] get_tagged_cost_data() return value:")
+    print(results)
+
+    return results
+
+# -----------------------------------------------------------------------------
+# 9) RESTRUCTURE COST DATA FOR PER-SERVICE
 # -----------------------------------------------------------------------------
 
 def restructure_cost_data(cost_data_dict, account_numbers):
-    """
-    Turns the grouped cost data into a dict:
-       { account_number : { service_name : { date : amount, ... }, ... }, ... }
-    """
     print("restructure_cost_data called.")
     display_cost_data_dict = {}
 
-    # Initialize the outer dict
     for acct in account_numbers:
         display_cost_data_dict[acct] = {}
 
@@ -398,122 +408,168 @@ def restructure_cost_data(cost_data_dict, account_numbers):
             acct_no = group['Keys'][0]
             service_name = group['Keys'][1]
             amount = float(group['Metrics']['UnblendedCost']['Amount'])
-
             if acct_no in display_cost_data_dict and service_name in display_cost_data_dict[acct_no]:
                 display_cost_data_dict[acct_no][service_name][date] = amount
-            else:
-                continue
 
-    # Sort service names for each account
+    # Sort service names
     sorted_dict = {}
     for acct_no, services in display_cost_data_dict.items():
         sorted_services = dict(sorted(services.items()))
         sorted_dict[acct_no] = sorted_services
 
     print("Completed restructure_cost_data.")
+    print("\n[DEBUG] restructure_cost_data() return value:")
+    print(sorted_dict)
+
     return sorted_dict
 
 # -----------------------------------------------------------------------------
-# 10) GENERATE HTML TABLE FOR PER-SERVICE BREAKDOWN
+# 10) MERGE TEAM + OVERALL, THEN GENERATE A SINGLE 5-COLUMN TABLE
 # -----------------------------------------------------------------------------
 
-def generate_html_table(cost_data_dict, display_cost_data_dict):
+def merge_team_data(overall_dict, team_dict):
     """
-    Creates a detailed breakdown table by account, service, and monthly cost.
-    Includes cost and % delta between months.
+    overall_dict and team_dict have structure:
+      { service_name: { "2024-11-01": cost, "2024-12-01": cost } }
+
+    We'll assume exactly 2 months. We'll produce a dictionary:
+      { service_name: {
+          "overallCurr": <float>,
+          "overallDeltaPct": <float or None>,
+          "teamDeltaPct": <float or None>,
+          "teamDeltaDollar": <float>
+        }
+      }
     """
-    print("generate_html_table called.")
+    all_services = set(overall_dict.keys()).union(team_dict.keys())
+    all_dates = set()
+    for svc in overall_dict:
+        all_dates.update(overall_dict[svc].keys())
+    for svc in team_dict:
+        all_dates.update(team_dict[svc].keys())
 
-    # Identify the monthly buckets from cost_data_dict
-    sorted_months = sorted([rbt['TimePeriod']['Start'] for rbt in cost_data_dict])
+    sorted_months = sorted(all_dates)
+    if len(sorted_months) < 2:
+        print("WARNING: Not enough months to compute deltas!")
+        return {}
 
-    # Each month has 1 cost column; after the first month, we also have a delta column
-    # So total columns = (num_months * 1) + (num_months - 1)
-    num_months = len(sorted_months)
-    columns = (num_months * 1) + (num_months - 1)
+    prev_m = sorted_months[0]
+    curr_m = sorted_months[1]
 
+    final_info = {}
+    for svc in all_services:
+        # overall cost
+        prev_overall = overall_dict.get(svc, {}).get(prev_m, 0.0)
+        curr_overall = overall_dict.get(svc, {}).get(curr_m, 0.0)
+
+        if prev_overall > 0 and curr_overall > 0:
+            overall_delta = (curr_overall / prev_overall) - 1
+        else:
+            overall_delta = None
+
+        # team cost
+        prev_team = team_dict.get(svc, {}).get(prev_m, 0.0)
+        curr_team = team_dict.get(svc, {}).get(curr_m, 0.0)
+
+        team_delta_dollar = curr_team - prev_team
+        if prev_team > 0 and curr_team > 0:
+            team_delta_pct = (curr_team / prev_team) - 1
+        else:
+            team_delta_pct = None
+
+        final_info[svc] = {
+            "overallCurr": curr_overall,
+            "overallDeltaPct": overall_delta,
+            "teamDeltaPct": team_delta_pct,
+            "teamDeltaDollar": team_delta_dollar
+        }
+
+    return final_info
+
+
+def generate_html_table_with_team(final_info, acct_no):
+    """
+    final_info: { service_name: {
+        "overallCurr": float,
+        "overallDeltaPct": float or None,
+        "teamDeltaPct": float or None,
+        "teamDeltaDollar": float
+      }
+    }
+
+    Creates a 5-column table:
+    - Service Name
+    - Overall Cost
+    - Overall Δ%
+    - Team Δ%
+    - Team Δ$
+    """
     def evaluate_change(value):
         if value is None:
-            return "<td>&nbsp;</td>"
+            return ""
+        pct = f"{value:.2%}"
+        # Basic color coding example
+        if value > 0.15:
+            return f"<span style='color:Red; font-weight:bold;'>{pct}</span>"
+        elif value > 0.05:
+            return f"<span style='color:DarkOrange; font-weight:bold;'>{pct}</span>"
+        elif value > 0.02:
+            return f"<span style='color:Orange; font-weight:bold;'>{pct}</span>"
+        elif value >= -0.02:
+            return pct
         elif value < -0.15:
-            return f"<td style='text-align:right; color:Navy; font-weight:bold;'>{value:.2%}</td>"
-        elif -0.15 <= value < -0.10:
-            return f"<td style='text-align:right; color:Blue; font-weight:bold;'>{value:.2%}</td>"
-        elif -0.10 <= value < -0.05:
-            return f"<td style='text-align:right; color:DodgerBlue; font-weight:bold;'>{value:.2%}</td>"
-        elif -0.05 <= value < -0.02:
-            return f"<td style='text-align:right; color:DeepSkyBlue; font-weight:bold;'>{value:.2%}</td>"
-        elif -0.02 <= value <= 0.02:
-            return f"<td style='text-align:right;'>{value:.2%}</td>"
-        elif 0.02 < value <= 0.05:
-            return f"<td style='text-align:right; color:Orange; font-weight:bold;'>{value:.2%}</td>"
-        elif 0.05 < value <= 0.10:
-            return f"<td style='text-align:right; color:DarkOrange; font-weight:bold;'>{value:.2%}</td>"
-        elif 0.10 < value <= 0.15:
-            return f"<td style='text-align:right; color:OrangeRed; font-weight:bold;'>{value:.2%}</td>"
-        elif value > 0.15:
-            return f"<td style='text-align:right; color:Red; font-weight:bold;'>{value:.2%}</td>"
+            return f"<span style='color:Navy; font-weight:bold;'>{pct}</span>"
         else:
-            return f"<td style='text-align:right;'>{value:.2%}</td>"
+            return f"<span>{pct}</span>"
 
-    def row_color(i_row):
-        return "<tr style='background-color:WhiteSmoke;'>" if (i_row % 2) == 0 else "<tr>"
+    html = f"""
+    <h3>Team vs. Overall Cost (Account {acct_no})</h3>
+    <table border="1" style="border-collapse: collapse; font-family: Arial, sans-serif;">
+      <tr style="background-color: SteelBlue; color: white;">
+        <th>Service Name</th>
+        <th>Overall Cost</th>
+        <th>Overall Δ%</th>
+        <th>Team Δ%</th>
+        <th>Team Δ$</th>
+      </tr>
+    """
 
-    emailHTML = "<h2>AWS Monthly Cost Report - Per Service Breakdown</h2>"
-    emailHTML += f'<table border="1" style="border-collapse:collapse; font-family:Arial,sans-serif;">'
+    for svc in sorted(final_info.keys()):
+        row = final_info[svc]
+        overall_curr = row["overallCurr"]
+        overall_delta_pct = row["overallDeltaPct"]
+        team_delta_pct = row["teamDeltaPct"]
+        team_delta_dollar = row["teamDeltaDollar"]
 
-    for acct_no, services in display_cost_data_dict.items():
-        acct_name = accountDict.get(acct_no, acct_no)
-        # Header for this account
-        emailHTML += f'<tr style="background-color:SteelBlue;"><td colspan="{columns}" style="text-align:center; font-weight:bold;">'
-        emailHTML += f'{acct_name} ({acct_no})</td></tr>'
+        html += "<tr>"
+        html += f"<td style='padding:4px;'>{svc}</td>"
+        html += f"<td style='text-align:right; padding:4px;'>$ {overall_curr:,.2f}</td>"
 
-        # Subheader row for months
-        emailHTML += '<tr style="background-color:LightSteelBlue;">'
-        emailHTML += '<td style="text-align:center; font-weight:bold;">Service Name</td>'
-        for idx, m in enumerate(sorted_months):
-            if idx > 0:
-                emailHTML += '<td style="text-align:center;">Δ%</td>'
-            emailHTML += f'<td style="text-align:center; font-weight:bold;">{m}</td>'
-        emailHTML += '</tr>'
+        # Overall Δ%
+        if overall_delta_pct is not None:
+            html += f"<td style='text-align:right; padding:4px;'>{evaluate_change(overall_delta_pct)}</td>"
+        else:
+            html += "<td>&nbsp;</td>"
 
-        i_row = 0
-        for svc, monthly_data in services.items():
-            row_html = row_color(i_row)
-            row_html += f'<td style="text-align:left;">{svc}</td>'
+        # Team Δ%
+        if team_delta_pct is not None:
+            html += f"<td style='text-align:right; padding:4px;'>{evaluate_change(team_delta_pct)}</td>"
+        else:
+            html += "<td>&nbsp;</td>"
 
-            prev_cost = None
-            for idx, m in enumerate(sorted_months):
-                curr_cost = monthly_data.get(m, 0.0)
-                if idx > 0:
-                    # Evaluate delta
-                    if prev_cost and prev_cost != 0 and curr_cost != 0:
-                        pct_change = (curr_cost / prev_cost) - 1
-                        row_html += evaluate_change(pct_change)
-                    else:
-                        row_html += '<td>&nbsp;</td>'
-                row_html += f'<td style="text-align:right; padding:4px;">$ {curr_cost:,.2f}</td>'
-                prev_cost = curr_cost
+        # Team Δ$
+        html += f"<td style='text-align:right; padding:4px;'>$ {team_delta_dollar:,.2f}</td>"
 
-            row_html += '</tr>'
-            emailHTML += row_html
-            i_row += 1
+        html += "</tr>"
 
-    emailHTML += '</table>'
-    print("Completed generate_html_table.")
-    return emailHTML
+    html += "</table>"
+    return html
 
 # -----------------------------------------------------------------------------
-# 11) SEND REPORT VIA SES
+# 11) SEND REPORT VIA SES (Unchanged)
 # -----------------------------------------------------------------------------
 
 def send_report_email(BODY_HTML):
-    """
-    Sends the HTML report via Amazon SES. Relies on environment variables:
-      - SENDER: The 'From' address (must be verified in SES)
-      - RECIPIENT: The 'To' address
-      - AWS_REGION: AWS region for SES
-    """
     print("Sending report via SES...")
 
     SENDER = os.environ.get('SENDER', 'no-reply@example.com')
@@ -540,7 +596,7 @@ def send_report_email(BODY_HTML):
         )
         print("Email sent! Message ID:", response['MessageId'])
     except ClientError as e:
-        print(e.response['Error']['Message'])
+        print("SES send_email Error:", e.response['Error']['Message'])
 
 # -----------------------------------------------------------------------------
 # 12) LAMBDA HANDLER
@@ -548,50 +604,47 @@ def send_report_email(BODY_HTML):
 
 def lambda_handler(event=None, context=None):
     print("=== Starting Lambda Execution ===")
-    # 1) Get summary cost info (per account)
+
+    # 1) Summarize monthly cost per account (the top summary table)
     mainCostDict = ce_get_costinfo_per_account(accountDict)
-    print("mainCostDict:", mainCostDict)
-
-    # 2) Re-sort the mainCostDict by month
     mainMonthlyDict = process_costchanges_per_month(mainCostDict)
-    print("mainMonthlyDict:", mainMonthlyDict)
-
-    # 3) Create a "display" dictionary that includes 'Others' + 'monthTotal'
     mainDisplayDict = process_costchanges_for_display(mainMonthlyDict)
-    print("mainDisplayDict:", mainDisplayDict)
-
-    # 4) Optionally compute monthly % changes
     finalDisplayDict = process_percentchanges_per_month(mainDisplayDict)
-    print("finalDisplayDict:", finalDisplayDict)
 
-    # 5) Generate the summary HTML
+    # 2) Build the summary HTML (the table that looks like your screenshot)
     summary_html = create_report_html(finalDisplayDict, BODY_HTML)
 
-    # -------------------------------------------------------------------------
-    # 6) Optional: Include a more granular per-service breakdown
-    # -------------------------------------------------------------------------
-    # Find the active accounts (in case you only want to break down active ones)
-    account_numbers = list(accountDict.keys())  # Or get_linked_accounts(accountDict.keys())
-
-    # Retrieve monthly cost data grouped by account & service
+    # 3) Gather the "per-service" overall cost (like your existing breakdown)
+    account_numbers = list(accountDict.keys())
     cost_data_Dict = get_cost_data(account_numbers)
-    print("cost_data_Dict:", cost_data_Dict)
-
-    # Restructure the cost data
     display_cost_data_Dict = restructure_cost_data(cost_data_Dict, account_numbers)
-    print("display_cost_data_Dict:", display_cost_data_Dict)
 
-    # Create the per-service breakdown HTML
-    breakdown_html = generate_html_table(cost_data_Dict, display_cost_data_Dict)
+    # 4) Also gather the "per-service" cost for the team (tag filter)
+    team_data_Dict = get_tagged_cost_data(account_numbers, TEAM_TAG_KEY, TEAM_TAG_VALUE)
+    display_team_data_Dict = restructure_cost_data(team_data_Dict, account_numbers)
 
-    # Combine summary + breakdown
+    # 5) For each account, merge the overall + team cost into a single dict,
+    #    then generate a combined HTML table with 5 columns:
+    #      (Service, Overall Cost, Overall Δ%, Team Δ%, Team Δ$)
+    breakdown_html = ""
+    for acct_id in display_cost_data_Dict:
+        overall_dict = display_cost_data_Dict[acct_id]   # {service: {month: cost}}
+        team_dict = display_team_data_Dict.get(acct_id, {})
+        final_info = merge_team_data(overall_dict, team_dict)
+
+        # Create the table for this account
+        table_html = generate_html_table_with_team(final_info, acct_id)
+        breakdown_html += table_html
+        breakdown_html += "<br><br>"
+
+    # 6) Combine summary + new breakdown
     combined_html = summary_html + '<br><br>' + breakdown_html
+    print("=== Final Combined HTML ===\n", combined_html[:1000], "... (truncated)\n")
 
-    # 7) Send the email
+    # 7) Send the email via SES
     send_report_email(combined_html)
 
     print("=== Completed Lambda Execution ===")
-
     return {
         'statusCode': 200,
         'body': 'Monthly Cost Report Sent!'
