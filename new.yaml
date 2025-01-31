@@ -1,7 +1,28 @@
-tags = merge(
-    {
-      Name = "${var.stack_name}-windows-instance-${var.team}"
-      DomainJoin = "true"
-    },
-    local.default_tags
-  )
+TestEvent
+
+Response
+{
+  "errorMessage": "Syntax error in module 'lambda_function': invalid syntax (lambda_function.py, line 485)",
+  "errorType": "Runtime.UserCodeSyntaxError",
+  "requestId": "",
+  "stackTrace": [
+    "  File \"/var/task/lambda_function.py\" Line 485\n                \"teamPrevCost\": prev_team\n"
+  ]
+}
+
+Function Logs
+[ERROR] Runtime.UserCodeSyntaxError: Syntax error in module 'lambda_function': invalid syntax (lambda_function.py, line 485)
+Traceback (most recent call last):
+  File "/var/task/lambda_function.py" Line 485
+                "teamPrevCost": prev_team
+INIT_REPORT Init Duration: 129.18 ms	Phase: init	Status: error	Error Type: Runtime.UserCodeSyntaxError
+[ERROR] Runtime.UserCodeSyntaxError: Syntax error in module 'lambda_function': invalid syntax (lambda_function.py, line 485)
+Traceback (most recent call last):
+  File "/var/task/lambda_function.py" Line 485
+                "teamPrevCost": prev_team
+INIT_REPORT Init Duration: 143.06 ms	Phase: invoke	Status: error	Error Type: Runtime.UserCodeSyntaxError
+START RequestId: f2041090-94ff-44ea-bd4d-773c056579bb Version: $LATEST
+Unknown application error occurred
+Runtime.UserCodeSyntaxError
+END RequestId: f2041090-94ff-44ea-bd4d-773c056579bb
+REPORT RequestId: f2041090-94ff-44ea-bd4d-773c056579bb	Duration: 151.64 ms	Billed Duration: 152 ms	Memory Size: 1024 MB	Max Memory Used: 11 MB
