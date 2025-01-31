@@ -1,17 +1,89 @@
-{'384352530920': {'ResultsByTime': [{'TimePeriod': {'Start': '2024-11-01', 'End': '2024-12-01'}, 'Total': {'UnblendedCost': {'Amount': '10557.2748344847', 'Unit': 'USD'}}, 'Groups': [], 'Estimated': False}, {'TimePeriod': {'Start': '2024-12-01', 'End': '2025-01-01'}, 'Total': {'UnblendedCost': {'Amount': '11042.872268959', 'Unit': 'USD'}}, 'Groups': [], 'Estimated': False}], 'DimensionValueAttributes': [], 'ResponseMetadata': {'RequestId': '105e90d8-ac09-433d-913d-b9274c0759a3', 'HTTPStatusCode': 200, 'HTTPHeaders': {'date': 'Fri, 24 Jan 2025 21:34:54 GMT', 'content-type': 'application/x-amz-json-1.1', 'content-length': '360', 'connection': 'keep-alive', 'x-amzn-requestid': '105e90d8-ac09-433d-913d-b9274c0759a3', 'cache-control': 'no-cache'}, 'RetryAttempts': 0}}}
+combined_html = "<div style='width:80%; margin:0 auto;'>" + summary_html + "<br><br>" + breakdown_html + "</div>"
 
-mainCostDict: {'384352530920': {'ResultsByTime': [{'TimePeriod': {'Start': '2024-11-01', 'End': '2024-12-01'}, 'Total': {'UnblendedCost': {'Amount': '10557.2748344847', 'Unit': 'USD'}}, 'Groups': [], 'Estimated': False}, {'TimePeriod': {'Start': '2024-12-01', 'End': '2025-01-01'}, 'Total': {'UnblendedCost': {'Amount': '11042.872268959', 'Unit': 'USD'}}, 'Groups': [], 'Estimated': False}], 'DimensionValueAttributes': [], 'ResponseMetadata': {'RequestId': '105e90d8-ac09-433d-913d-b9274c0759a3', 'HTTPStatusCode': 200, 'HTTPHeaders': {'date': 'Fri, 24 Jan 2025 21:34:54 GMT', 'content-type': 'application/x-amz-json-1.1', 'content-length': '360', 'connection': 'keep-alive', 'x-amzn-requestid': '105e90d8-ac09-433d-913d-b9274c0759a3', 'cache-control': 'no-cache'}, 'RetryAttempts': 0}}}
 
-{'2024-11-01': {'384352530920': {'Cost': 10557.2748344847}, 'monthTotal': {'Cost': 10557.2748344847}}, '2024-12-01': {'384352530920': {'Cost': 11042.872268959}, 'monthTotal': {'Cost': 11042.872268959}}}
+########
+def create_report_html(...):
+    ...
+    BODY_HTML = "<div style='width:80%; margin:0 auto;'>"  # wrap everything
+    BODY_HTML += "<h2>AWS Monthly Cost Report for Accounts - Summary</h2>"
+    # (rest of your table code)
+    ...
+    BODY_HTML += "</div>"  # close the wrapper
+    return BODY_HTML
+###############
 
-mainMonthlyDict: {'2024-11-01': {'384352530920': {'Cost': 10557.2748344847}, 'monthTotal': {'Cost': 10557.2748344847}}, '2024-12-01': {'384352530920': {'Cost': 11042.872268959}, 'monthTotal': {'Cost': 11042.872268959}}}
 
-{'2024-11-01': {'384352530920': {'Cost': 10557.2748344847}, 'monthTotal': {'Cost': 10557.2748344847}, 'Others': {'Cost': 0.0}}, '2024-12-01': {'384352530920': {'Cost': 11042.872268959}, 'monthTotal': {'Cost': 11042.872268959}, 'Others': {'Cost': 0.0}}}
 
-mainDisplayDict: {'2024-11-01': {'384352530920': {'Cost': 10557.2748344847}, 'monthTotal': {'Cost': 10557.2748344847}, 'Others': {'Cost': 0.0}}, '2024-12-01': {'384352530920': {'Cost': 11042.872268959}, 'monthTotal': {'Cost': 11042.872268959}, 'Others': {'Cost': 0.0}}}
+final_info[svc] = {
+    "overallCurr": curr_overall,
+    "overallDeltaPct": overall_delta,
+    "teamDeltaPct": team_delta_pct,
+    "teamDeltaDollar": team_delta_dollar,
+    "teamPrevCost": prev_team  # <-- add this new field
+}
 
-{'2024-11-01': {'384352530920': {'Cost': 10557.2748344847, 'percentDelta': None}, 'monthTotal': {'Cost': 10557.2748344847, 'percentDelta': None}, 'Others': {'Cost': 0.0, 'percentDelta': None}}, '2024-12-01': {'384352530920': {'Cost': 11042.872268959, 'percentDelta': 0.045996475613964805}, 'monthTotal': {'Cost': 11042.872268959, 'percentDelta': 0.045996475613964805}, 'Others': {'Cost': 0.0, 'percentDelta': None}}}
+##################
 
-finalDisplayDict: {'2024-11-01': {'384352530920': {'Cost': 10557.2748344847, 'percentDelta': None}, 'monthTotal': {'Cost': 10557.2748344847, 'percentDelta': None}, 'Others': {'Cost': 0.0, 'percentDelta': None}}, '2024-12-01': {'384352530920': {'Cost': 11042.872268959, 'percentDelta': 0.045996475613964805}, 'monthTotal': {'Cost': 11042.872268959, 'percentDelta': 0.045996475613964805}, 'Others': {'Cost': 0.0, 'percentDelta': None}}}
+def generate_html_table_with_team(final_info, acct_no):
 
-<h2>AWS Monthly Cost Report for Accounts - Summary</h2><table border='1' style='border-collapse:collapse; font-family:Arial, sans-serif; font-size:12px;'><tr style='background-color:SteelBlue;'><td>&nbsp;</td><td colspan='2' style='text-align:center;'><b>AWS-Workloads-Dev</b></td><td colspan='2' style='text-align:center;'><b>AWS-Workloads-QA</b></td><td colspan='2' style='text-align:center;'><b>AWS-Workloads-Prod</b></td><td colspan='2' style='text-align:center;'><b>Total</b></td></tr><tr style= ...
+    def evaluate_change(value):
+        ...
+        # (Same as before for percentages)
+    
+    def evaluate_dollar(delta_dollar, prev_cost):
+        """
+        Convert the absolute dollar difference into a ratio
+        so we can color-code with the same thresholds.
+        e.g., ratio = (delta_dollar / prev_cost)
+        """
+        if prev_cost == 0:
+            return ""  # Can't compute ratio from zero
+        ratio = delta_dollar / prev_cost
+        html_ratio = evaluate_change(ratio)  # reuse the same function
+        return html_ratio
+
+    html = f"""
+    <h3>Team vs. Overall Cost (Account {acct_no})</h3>
+    <table border="1" style="border-collapse: collapse; font-family: Arial, sans-serif;">
+      <tr style="background-color: SteelBlue; color: white;">
+        <th>Service Name</th>
+        <th>Overall Cost</th>
+        <th>Overall Δ%</th>
+        <th>Team Δ%</th>
+        <th>Team Δ$</th>
+      </tr>
+    """
+
+    for svc in sorted(final_info.keys()):
+        row = final_info[svc]
+        overall_curr = row["overallCurr"]
+        overall_delta_pct = row["overallDeltaPct"]
+        team_delta_pct = row["teamDeltaPct"]
+        team_delta_dollar = row["teamDeltaDollar"]
+        team_prev_cost = row.get("teamPrevCost", 0.0)  # the new field
+
+        html += "<tr>"
+        html += f"<td style='padding:4px;'>{svc}</td>"
+        html += f"<td style='text-align:right; padding:4px;'>$ {overall_curr:,.2f}</td>"
+
+        # Overall Δ%
+        if overall_delta_pct is not None:
+            html += f"<td style='text-align:right; padding:4px;'>{evaluate_change(overall_delta_pct)}</td>"
+        else:
+            html += "<td>&nbsp;</td>"
+
+        # Team Δ%
+        if team_delta_pct is not None:
+            html += f"<td style='text-align:right; padding:4px;'>{evaluate_change(team_delta_pct)}</td>"
+        else:
+            html += "<td>&nbsp;</td>"
+
+        # Team Δ$ (colored)
+        # Convert it into ratio and color code
+        ratio_html = evaluate_dollar(team_delta_dollar, team_prev_cost)
+        html += f"<td style='text-align:right; padding:4px;'>$ {team_delta_dollar:,.2f} {ratio_html}</td>"
+
+        html += "</tr>"
+
+    html += "</table>"
+    return html
