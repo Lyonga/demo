@@ -1,4 +1,4 @@
-│ Error: creating SSM Document (ngl-sec-auto-install): operation error SSM: CreateDocument, https response error StatusCode: 400, RequestID: 04eb562f-f5fd-448a-8ff0-a577a01919f7, InvalidDocumentSchemaVersion: 0.3 is not a valid schema version for Command document type
+│ Error: creating SSM Document (ngl-sec-auto-install): operation error SSM: CreateDocument, https response error StatusCode: 400, RequestID: 462d5a94-183e-4dfb-9ad3-8e0f17b06fd0, InvalidDocumentContent: Unknown plugin name: aws:runCommand
 │ 
 │   with aws_ssm_document.install_tools,
 │   on ssm-linux.tf line 257, in resource "aws_ssm_document" "install_tools":
