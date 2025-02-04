@@ -1,6 +1,154 @@
-{'384352530920': {'AWS Secrets Manager': {'2024-11-01': 0.00415, '2024-12-01': 0.00421}, 'Amazon Elastic Compute Cloud - Compute': {'2024-11-01': 79.776, '2024-12-01': 82.4352}, 'Amazon Inspector': {'2024-11-01': 0.8512701929, '2024-12-01': 1.0052094313}, 'Amazon Redshift': {'2024-11-01': 782.822278548, '2024-12-01': 808.95731451}, 'EC2 - Other': {'2024-11-01': 62.0420110935, '2024-12-01': 68.0618300179}}, '454229460814': {}, '235163852221': {}}
+In an effort to evaluate potential cost-savings from adopting our FSx cost optimization recommendations, certain FSx metrics can be used around costing and actual resource utilization which involves calculating percentage and monetary gains in order to obtain actionable insights that can guide decision points on what best practices can be applied to cut costs. The steps are:
+1. Analyzing of Current Usage: this involves usage on:
+•	Current FSx Storage Capacity (SSD or HDD): Total provisioned capacity and used capacity.
+•	Throughput Capacity: Current throughput level and average utilization.
+•	Deduplication Status: Check if deduplication is enabled.
+•	Backup Costs: Current backup size and frequency.
 
-WARNING: Not enough months to compute deltas!
-WARNING: Not enough months to compute deltas!
+1.	FSx Cost Breakdown Analysis from Cost Explorer for the month of December
+Cost Component	Current Usage	Cost Rate	Monthly Cost
+Provisioned SSD IOPS	64,140 IOPS-Mo	$0.012 per IOPS-Mo	$769.68
+Provisioned Storage (SSD)	130 GB-Mo	$0.130 per GB-Mo	$16.90
+Provisioned Throughput Capacity	2,048 MiBps-Mo	$2.20 per MBps-Mo	$4,505.60
+Backup Storage	8.329 GB-Mo	$0.05 per GB-Mo	$0.42
+Total Monthly FSx Cost			$5,292.60
+			
 
-<h2>AWS Monthly Cost Report for Accounts - Summary</h2><table border='1' style='border-collapse:collapse; font-family:Arial, sans-serif; font-size:12px;'><tr style='background-color:SteelBlue;'><td>&nbsp;</td><td colspan='2' style='text-align:center;'><b>AWS-Workloads-Dev</b></td><td colspan='2' style='text-align:center;'><b>AWS-Workloads-QA</b></td><td colspan='2' style='text-align:center;'><b>AWS-Workloads-Prod</b></td><td colspan='2' style='text-align:center;'><b>Total</b></td></tr><tr style='background-color:LightSteelBlue;'><td style='text-align:center;width:80px;'><b>Month</b></td><td style='text-align:center;width:95px;'>384352530920</td><td style='text-align:center;'>&Delta;%</td><td style='text-align:center;width:95px;'>454229460814</td><td style='text-align:center;'>&Delta;%</td><td style='text-align:center;width:95px;'>235163852221</td><td style='text-align:center;'>&Delta;%</td><td style='text-align:center;width:95px;'>All</td><td style='text-align:center;'>&Delta;%</td></t ... (truncated)
+			
+2. Simulate Savings Metrics: with the use of cost explorer and CloudWatch metrics for FSx, the cost for the past 3 months for the various FSx components and configs were explored and a cost comparison detailed below:
+A. Data Deduplication: by default, is disabled and CloudWatch metrics shows zero deduplication. 
+Also note deduplication offers cost-saving capabilities in function to file types as follows: 
+•	30-50% for user documents/photos/audio/videos.
+•	70-80% for software development datasets and log files.
+•	50-60% for all general-purpose files (mix of above).
+
+Comparative view of deduplication vs standard for Single-AZ deployment
+				
+Component	Effective cost with data deduplication enabled*	Pricing	Monthly Total with deduplication	Monthly Total without deduplication
+SSD storage capacity	$0.065 per GB-month	$0.13 per GB-month	$8.45	$16.9
+SSD IOPS	$0.012 per IOPS-month	$0.012 per IOPS-month	$769.68	$769.68
+Throughput capacity	$1.10 per MBps-month	$2.20 per MBps-month	$2,252.8	$4,505.60
+Backup storage	$0.025 per GB-month	$0.05 per GB-month	$0.21 	$0.42
+			$3,031.14	$5,292.60
+
+
+    Estimation Formula:
+    Savings Percentage=Expected Deduplication Efficiency (50%) × Current Storage Cost
+    Example: If your current monthly storage cost is $5,292.60, enabling deduplication with 50% efficiency could save:
+    50%×5,292.60(+-769.68) = $3,031.14 (only IOPS is not affected deduplication)
+Savings for SSD storage for 130Gb = 50%×130 GB×0.13 USD
+    =65×0.13=$8.45 per month
+
+B. Right-Sizing Throughput Capacity
+Amazon FSx charges for provisioned throughput capacity, meaning you pay for the allocated capacity, not the actual usage.
+AWS cost explorer shows the FSx share is configured with:
+ Provisioned Throughput: 2,048 MiBps-Mo at $2.20 per MBps-Mo.
+CloudWatch shows a throughput utilization of only ~3.69%.
+    Hence its throughput capacity is over-Provisioned leaving a 96.31% of the provisioned capacity unused.
+Example Calculation for Right-Sizing Throughput
+Estimated Savings
+If throughput is reduced proportionally to a median range of 512 MiBps
+The actual monthly cost becomes = Provisioned Throughput (MiBps) x Cost per MBps-Month
+   =>Throughput = 512 x 2.20 = $1,126.40
+Cost for current 2,048MiBps 2,048 x 2.20 = $4,505.60
+    Savings: $4,505.60 - $1,126.40 = $3,379.2
+
+Acceptable Throughput to Start for With Baseline Recommendation:
+For heavier workloads, 256–512 MiBps might be required and scaled as needed.
+
+Scaling Throughput Dynamically
+        Use Amazon CloudWatch to track actual usage over time.
+        Set up AWS Auto Scaling to adjust throughput dynamically.
+        Use AWS FSx API or CLI to manually scale throughput.
+For cost efficiency, its best practice to set median practical values based on workloads and scale the resources on-demand as detailed in the Mitigation block below.
+
+C. Storage capacity and SSD IOPS Optimization
+By default, AWS sets three IOPS per GB of storage, this allocation is free and goes with cost of the SSD/HDD storage. With The 130GB SSD on the share the cost would be zero. 
+User provisioned IOPS can be set for better performance to address latency issues, and this set value now overrides the default value and is charged.
+A lower value of (recommendation: 3–500 IOPS per GiB of storage capacity) 30,000 IOPS can be set for large disk operations and set on auto-scaling with a lambda from CloudWatch trigger like with throughput scaling. The following metrics can be used to trigger the lambda function:
+ DiskWriteOperations, DiskReadOperations, MetadataOperations and FileServerDiskThroughputUtilization
+Cost if IOPS were set to half the current value and auto scaled: 30,000 x 0.012 = $360
+Given the FileServerDiskThroughputUtilization is less than 4% and the other above listed metrics have a low count, we can set the IOPS lower and auto scale based on increasing values.
+Also, FSx, storage capacity can be optimized/scaled based on needs/usage by making use of FreeStorageCapacity CloudWatch metric to increase the storage.
+Note: You can only increase the amount of storage capacity for a file system; you can't decrease storage capacity and each increase must be a minimum of 10 percent of the file system's current storage capacity.
+
+D. Backup Storage Optimization
+ The current backup storage is 8.329 GB, costing $0.42 per month.
+    We can define a backup lifecycle rule using AWS Backup to move older backups to S3 Glacier or reducing backup frequency can cut costs. Moving 80% of backups to Glacier saves ~80% on backup storage.
+Estimated Savings
+    Moving 80% of backups to S3 Glacier ($0.01 per GB-Mo):
+    Savings=8.329×0.8×(0.05−0.01)
+    =6.663×0.04=$0.27 per month
+Summary of Cost Savings
+This summary assumes the following:
+•	deduplication is enabled and works at 50%, this in turn sets new throughput charge to 1.10MiBps-month.
+•	25% (512: 512x1.1) of current throughput value used and set on auto-scaling
+•	Provisioned IOPS is set to half capacity (30,000) and auto scaled.
+			
+Optimization Area	Current Cost (USD)	Savings (%)	Estimated Savings (cost=1,495.27)
+Deduplication (50% on SSD storage, throughput & backup)	$571.86	50-70%	8.45 + 563.2+0.21=$571.86
+SSD IOPS	$769.68	50%	$360
+Throughput capacity (25%)	$4,505.60	75%	$563.2
+Backup optimization	$0.42	80%	$0.21 
+Total Estimated Savings	$5,292.60	Greater than 75%	$3,797.33
+
+
+RISKS and MITIGATION
+Risks:
+•	No impact on stored files. FSx dynamically scales throughput without data loss.
+•	It requires 6hours from the last storage capacity scaling or until the last scaling optimization is complete.  So, its recommendation to scale throughput before scaling storage as storage scaling can day hours to a few days. 
+•	Performance Impact: Reducing throughput too much may affect access speed for high-load workloads.
+Mitigation:
+Auto-Scaling Strategy for FSx Throughput and Storage Using CloudWatch Metrics, CloudWatch Alarms, and AWS Lambda as follows:
+
+1. Auto-Scaling FSx Throughput
+FSx allows manual throughput scaling, so we need a solution that:
+•	Monitors actual throughput utilization (CloudWatch metric: FileServerDiskThroughputUtilization).
+•	Triggers an adjustment when utilization is too high or too low.
+•	Invokes AWS Lambda to scale throughput up or down.
+
+Steps for Implementing FSx Throughput Auto-Scaling
+•	Define CloudWatch Alarms for Throughput
+•	Scale Down (Over-Provisioned): If utilization < 10% for 24 hours, reduce throughput.
+•	Scale Up (Under-Provisioned): If utilization > 80% for 15 minutes, increase throughput.
+•	Create an AWS Lambda Function to Adjust Throughput
+•	The function will retrieve current FSx throughput.
+•	If an alarm is triggered, it will update the FSx throughput to a new value.
+•	The Lambda function needs AWS FSx API permissions to modify throughput.
+•	Attach CloudWatch Alarm to Lambda
+•	When an alarm threshold is met, it triggers the Lambda function.
+
+✅ How it Works
+    If FileServerDiskThroughputUtilization is over 80%, it increases throughput by 512 MiBps incrementally.
+
+2. Auto-Scaling FSx Storage
+FSx storage offers possibilities to grow/increase the storage capacity dynamically as needed. The following metrics can be used as triggers/decision points to scale capacity:
+    Identify underutilized storage (metric: StorageCapacityUtilization).
+    Optimize storage through deduplication (metric: DeduplicationSavedStorage).
+    Trigger lifecycle policies for old data (metric: DiskReadOperations).
+
+FINAL RECOMMENDATIONS AND DECISION POINTS AND RECOMMENDATIONS
+From the CloudWatch metrics obtained from the FSx file share POC, we see generally that the resources were underutilized (<5%), this can be because it was just for testing, a production level setup will require auto-scaling to high capacity in response to high resource utilization. To accommodate these, we must:
+•	Regulate FSx throughput to certain (512) to match actual usage (~$4,285 monthly savings).
+•	Enable storage deduplication to reduce allocated storage (potential 40% overall cuts + storage savings).
+•	Monitor storage utilization and adjust storage allocation to prevent over-provisioning.
+•	Move older backup data to Amazon S3 Glacier to cut backup costs by up to 80%.
+
+CONCLUSION
+•	Biggest savings come from reducing throughput to match actual usage.
+•	Deduplication and storage lifecycle policies provide additional cost cuts.
+•	All changes can be automated using AWS CloudWatch Alarms, Lambda, and Backup Plans or manually via CLI or console.
+
+MISCELLANEOUS
+CloudWatch Metrics That Can Help with Cost Optimization
+StorageCapacityUtilization: If utilization is low, no need to scale up as we can only increase storage capacity.
+DeduplicationSavedStorage: Measures how much space deduplication saves (< 30%? Enable deduplication for additional storage efficiency).
+FileServerDiskThroughputUtilization: Helps identify over-provisioned throughput (< 5%? Reduce throughput to save on throughput charges).
+DiskReadBytes/DiskWriteBytes:	Identifies if storage is underutilized (no need to scale).
+MemoryUtilization: Helps determine if workload needs higher performance (throughput) settings.
+ClientConnections: Shows how many active connections FSx is serving. If low, we may be over-provisioned.
+
+
+    
+
+
