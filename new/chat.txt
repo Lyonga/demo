@@ -6,3 +6,7 @@ Start-Process -FilePath "msiexec.exe" `
     Start-Process -FilePath "msiexec.exe" `
         -ArgumentList "/i C:\Scripts\RAPID7_X86_64.MSI /l*v C:\Scripts\debug.log /qn" `
         -Wait -NoNewWindow
+
+
+
+"action": "aws:runShellScript",
