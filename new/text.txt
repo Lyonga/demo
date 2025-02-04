@@ -1,5 +1,182 @@
-│ Error: creating SSM Document (ngl-sec-auto-install): operation error SSM: CreateDocument, https response error StatusCode: 400, RequestID: 462d5a94-183e-4dfb-9ad3-8e0f17b06fd0, InvalidDocumentContent: Unknown plugin name: aws:runCommand
-│ 
-│   with aws_ssm_document.install_tools,
-│   on ssm-linux.tf line 257, in resource "aws_ssm_document" "install_tools":
-│  257: resource "aws_ssm_document" "install_tools" {
+##########################
+resource "aws_ssm_document" "install_tools" {
+  name          = "ngl-sec-auto-install"
+  document_type = "Command"
+  tags          = local.default_tags
+
+  content = jsonencode({
+    #schemaVersion = "0.3",
+    schemaVersion = "2.2",
+    description   = "Install AWS CLI on Linux instances.",
+    parameters    = {
+      InstanceIds = { type = "StringList", description = "List of EC2 Instance IDs." }
+      Region      = { type = "String", default = "${data.aws_region.current.name}" }
+      S3BucketName   = { type = "String", description = "S3 bucket containing the installers.", default = "${var.bucket_name}" }
+      Region         = { type = "String", default = "${data.aws_region.current.name}" }
+      CrowdStrikeCID = { type = "String", description = "CrowdStrike CID for sensor installation.", default=data.aws_ssm_parameter.crowdStrike_cid.value }
+      DuoIKEY        = { type = "String", description = "Duo integration key.", default=data.aws_ssm_parameter.duo_ikey.value }
+      DuoSKEY        = { type = "String", description = "Duo secret key.", default=data.aws_ssm_parameter.duo_skey.value}
+      DuoApiHost     = { type = "String", description = "Duo host address.", default=data.aws_ssm_parameter.duo_api_host.value }
+    },
+    mainSteps = [
+      {
+        name     = "DownloadAWSCLI",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/awscli",
+              "curl 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o '/tmp/awscliv2.zip'",
+              "unzip -o /tmp/awscliv2.zip -d /tmp/awscli"
+            ]
+          }
+        }
+      },
+      {
+        name     = "InstallAWSCLI",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "sudo /tmp/awscli/aws/install",
+              "export PATH=$PATH:/usr/local/bin",
+              "aws --version"
+            ]
+          }
+        }
+      },
+      {
+        name     = "InstallCrowdStrike",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/agents",
+              "aws s3 cp s3://{{ S3BucketName }}/agents/falcon-sensor-7.16.0-16903.amzn2023.x86_64.rpm /tmp/agents/falcon-sensor-7.16.0-16903.amzn2023.x86_64.rpm",
+              "if [ ! -f /tmp/agents/falcon-sensor-7.16.0-16903.amzn2023.x86_64.rpm ]; then",
+              "  echo 'falcon-sensor-7.16.0-16903.amzn2023.x86_64.rpm not found. Exiting.'",
+              "  exit 1",
+              "fi",
+              "sudo rpm -ivh /tmp/agents/falcon-sensor-7.16.0-16903.amzn2023.x86_64.rpm",
+              "sudo /opt/CrowdStrike/falconctl -s --cid={{ CrowdStrikeCID }}",
+              "sudo systemctl enable falcon-sensor",
+              "sudo systemctl start falcon-sensor",
+              "echo 'CrowdStrike installation completed.'"
+            ]
+          }
+        }
+      },
+      {
+        name     = "InstallRapid7",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/agents",
+              "aws s3 cp s3://{{ S3BucketName }}/agents/rapid7-insight-agent-4.0.13.32-1.x86_64.rpm /tmp/agents/rapid7-insight-agent-4.0.13.32-1.x86_64.rpm",
+              "if [ ! -f /tmp/agents/rapid7-insight-agent-4.0.13.32-1.x86_64.rpm ]; then",
+              "  echo 'rapid7-insight-agent-4.0.13.32-1.x86_64.rpm not found. Exiting.'",
+              "  exit 1",
+              "fi",
+              "sudo rpm -ivh /tmp/agents/rapid7-insight-agent-4.0.13.32-1.x86_64.rpm",
+              "echo 'Rapid7 has been installed stsrting service.'",
+              "sudo systemctl enable ir_agent.service",
+              "sudo systemctl start ir_agent.service",
+              "systemctl status ir_agent.service",
+              "echo 'Rapid7 installation completed.'"
+            ]
+          }
+        }
+      },
+      {
+        name     = "InstallDuo",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/agents",
+              "aws s3 cp s3://{{ S3BucketName }}/agents/duo_unix-2.0.4.tar.gz /tmp/agents/duo_unix-2.0.4.tar.gz",
+              "if [ ! -f /tmp/agents/duo_unix-2.0.4.tar.gz ]; then",
+              "  echo 'duo_unix-2.0.4.tar.gz not found. Exiting.'",
+              "  exit 1",
+              "fi",
+
+              ##Dependency installation
+              "sudo yum install openssl-devel -y",
+              "sudo yum install pam-devel -y",
+              "sudo yum install selinux-policy-devel -y",
+              "sudo yum install bzip2 -y",
+              "sudo yum install gcc -y",
+
+              # Extract the tar.gz file
+              "tar -xzf /tmp/agents/duo_unix-2.0.4.tar.gz -C /tmp/agents/",
+
+              # Change directory to the extracted folder
+              "cd /tmp/agents/duo_unix-2.0.4 || exit 1",
+
+              "./configure --prefix=/usr && make && sudo make install",
+              "echo '[duo]' | sudo tee /etc/duo/login_duo.conf",
+              "echo 'ikey={{ DuoIKEY }}' | sudo tee -a /etc/duo/login_duo.conf",
+              "echo 'skey={{ DuoSKEY }}' | sudo tee -a /etc/duo/login_duo.conf",
+              "echo 'host={{ DuoApiHost }}' | sudo tee -a /etc/duo/login_duo.conf",
+              "echo 'pushinfo = yes' | sudo tee -a /etc/duo/login_duo.conf",
+              "echo 'autopush = yes' | sudo tee -a /etc/duo/login_duo.conf",
+              "echo 'Duo installation completed successfully.'"
+
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
+
+data "aws_ssm_parameter" "duo_ikey" {
+  name            = "/ngl/duo/ikey"
+  with_decryption = true
+}
+
+data "aws_ssm_parameter" "duo_skey" {
+  name            = "/ngl/duo/skey"
+  with_decryption = true
+}
+
+data "aws_ssm_parameter" "duo_api_host" {
+  name            = "/ngl/duo/host"
+  with_decryption = false  # or true if you stored it as SecureString
+}
+
+data "aws_ssm_parameter" "crowdStrike_cid" {
+  name            = "/ngl/cs/cid"
+  with_decryption = false  # or true if you stored it as SecureString
+}
+
+resource "aws_ssm_association" "install_agents_association" {
+  name = aws_ssm_document.install_tools.name
+
+  targets {
+    key    = "InstanceIds"
+    values = [aws_instance.linux_ec2.id]
+  }
+
+  # parameters = {
+  #   Region         = [data.aws_region.current.name],
+  #   CrowdStrikeCID = ["your-cid"],
+  #   DuoIKEY        = ["your-ikey"],
+  #   DuoSKEY        = ["your-skey"],
+  #   DuoApiHost     = ["your-host"]
+  # }
+
+  max_concurrency = "1"
+  max_errors      = "1"
+}
