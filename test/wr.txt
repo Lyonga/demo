@@ -1,0 +1,188 @@
+Retiring deprecated VPC subnets requires careful planning to avoid disruptions. Here’s a structured approach:
+
+---
+
+## **Process to Retire Deprecated VPC Subnets**
+
+### **1. Identify Resources in the Subnets**
+Before deprecating subnets, you need to identify all resources currently deployed in them.
+
+#### **AWS CLI Command to List Resources by Subnet**
+You can use the following AWS CLI commands to check various resources within a subnet:
+
+```sh
+# List all instances running in a specific subnet
+aws ec2 describe-instances --filters "Name=subnet-id,Values=subnet-xxxxxxxx" --query 'Reservations[*].Instances[*].[InstanceId,State.Name,Tags]' --output table
+
+# List all load balancers associated with the subnet
+aws elbv2 describe-load-balancers --query 'LoadBalancers[*].[LoadBalancerArn, VpcId, State.Code]' --output table
+
+# List all network interfaces in the subnet
+aws ec2 describe-network-interfaces --filters "Name=subnet-id,Values=subnet-xxxxxxxx" --query 'NetworkInterfaces[*].[NetworkInterfaceId,PrivateIpAddress,Status]' --output table
+
+# List RDS instances in the subnet
+aws rds describe-db-instances --query 'DBInstances[*].[DBInstanceIdentifier,DBSubnetGroup.VpcId,DBSubnetGroup.Subnets[*].SubnetIdentifier]'
+
+# List Lambda functions associated with the subnet (if using VPC)
+aws lambda list-functions --query "Functions[?VpcConfig.SubnetIds[?contains(@, 'subnet-xxxxxxxx')]].FunctionName"
+
+# List ElasticCache clusters in the subnet
+aws elasticache describe-cache-clusters --query 'CacheClusters[*].[CacheClusterId, CacheSubnetGroupName]'
+
+# List Redshift clusters in the subnet
+aws redshift describe-clusters --query 'Clusters[*].[ClusterIdentifier,ClusterSubnetGroupName]'
+
+# List ECS tasks running in the subnet
+aws ecs list-tasks --cluster <cluster-name> --query 'taskArns' | xargs -I {} aws ecs describe-tasks --cluster <cluster-name> --tasks {} --query 'tasks[*].[taskArn, containerInstanceArn, lastStatus]' --output table
+
+# List NAT Gateways in the subnet
+aws ec2 describe-nat-gateways --filter "Name=subnet-id,Values=subnet-xxxxxxxx" --query 'NatGateways[*].[NatGatewayId,State]'
+
+# List Route Tables associated with the subnet
+aws ec2 describe-route-tables --filters "Name=association.subnet-id,Values=subnet-xxxxxxxx" --query 'RouteTables[*].[RouteTableId,Associations]'
+
+# List Security Groups used in the subnet
+aws ec2 describe-security-groups --query "SecurityGroups[*].[GroupId, GroupName]"
+
+```
+👉 Replace `subnet-xxxxxxxx` with your actual subnet ID.
+
+---
+
+### **2. Plan and Migrate Resources**
+- Identify resources and determine migration strategy.
+- Modify Auto Scaling Groups (ASG) to launch instances in new subnets.
+- Update Load Balancer target groups to remove old subnets.
+- Update ECS, Lambda, and RDS configurations to use the new subnets.
+- Modify Route Tables, Security Groups, and Network ACLs if required.
+
+---
+
+### **3. Remove Resources from the Subnet**
+Once resources are migrated:
+- Terminate EC2 instances in the old subnet:
+  ```sh
+  aws ec2 terminate-instances --instance-ids i-xxxxxxxx
+  ```
+- Detach and delete Network Interfaces:
+  ```sh
+  aws ec2 delete-network-interface --network-interface-id eni-xxxxxxxx
+  ```
+- Delete NAT Gateways:
+  ```sh
+  aws ec2 delete-nat-gateway --nat-gateway-id nat-xxxxxxxx
+  ```
+- Delete Route Table associations and modify them:
+  ```sh
+  aws ec2 disassociate-route-table --association-id rtbassoc-xxxxxxxx
+  ```
+
+---
+
+### **4. Delete the Subnet**
+Once no resources are attached, delete the subnet:
+
+```sh
+aws ec2 delete-subnet --subnet-id subnet-xxxxxxxx
+```
+
+---
+
+## **Final Checks**
+- Verify no lingering dependencies:
+  ```sh
+  aws ec2 describe-subnets --subnet-ids subnet-xxxxxxxx
+  ```
+- Ensure the VPC configuration is valid.
+
+---
+
+This process ensures a smooth transition while retiring deprecated VPC subnets. Would you like Terraform automation for this?
+
+
+
+
+
+
+
+
+###########
+There is no single AWS CLI command that directly lists **all resources** in a subnet. However, you can use the following approaches to get a **comprehensive view** of resources in a subnet.
+
+---
+
+## **Option 1: Using AWS CLI + JQ**
+You can **combine multiple CLI commands** to find all resources in a subnet dynamically.
+
+### **AWS CLI Command to Find All Resources in a Subnet**
+```sh
+SUBNET_ID="subnet-xxxxxxxx"
+
+echo "Instances:"
+aws ec2 describe-instances --filters "Name=subnet-id,Values=$SUBNET_ID" --query "Reservations[*].Instances[*].[InstanceId,State.Name,Tags]" --output table
+
+echo "Network Interfaces:"
+aws ec2 describe-network-interfaces --filters "Name=subnet-id,Values=$SUBNET_ID" --query "NetworkInterfaces[*].[NetworkInterfaceId,PrivateIpAddress,Status]" --output table
+
+echo "RDS Instances:"
+aws rds describe-db-instances --query "DBInstances[?DBSubnetGroup.Subnets[?SubnetIdentifier=='$SUBNET_ID']].DBInstanceIdentifier" --output table
+
+echo "Load Balancers:"
+aws elbv2 describe-load-balancers --query "LoadBalancers[?contains(AvailabilityZones[].SubnetId, '$SUBNET_ID')].[LoadBalancerArn]" --output table
+
+echo "ECS Tasks:"
+aws ecs list-tasks --cluster <cluster-name> --query "taskArns" | xargs -I {} aws ecs describe-tasks --cluster <cluster-name> --tasks {} --query "tasks[?networkConfiguration.awsvpcConfiguration.subnets[?contains(@, '$SUBNET_ID')]].taskArn" --output table
+
+echo "Lambda Functions:"
+aws lambda list-functions --query "Functions[?VpcConfig.SubnetIds[?contains(@, '$SUBNET_ID')]].FunctionName" --output table
+
+echo "Elasticache Clusters:"
+aws elasticache describe-cache-clusters --query "CacheClusters[?CacheSubnetGroupName!=null].[CacheClusterId,CacheSubnetGroupName]" --output table
+
+echo "Redshift Clusters:"
+aws redshift describe-clusters --query "Clusters[?ClusterSubnetGroupName!=null].[ClusterIdentifier,ClusterSubnetGroupName]" --output table
+
+echo "NAT Gateways:"
+aws ec2 describe-nat-gateways --filter "Name=subnet-id,Values=$SUBNET_ID" --query "NatGateways[*].[NatGatewayId,State]" --output table
+
+echo "Route Tables:"
+aws ec2 describe-route-tables --filters "Name=association.subnet-id,Values=$SUBNET_ID" --query "RouteTables[*].[RouteTableId,Associations]" --output table
+```
+👉 Replace `<cluster-name>` with your **ECS cluster name**.
+
+---
+
+## **Option 2: Using AWS Resource Groups CLI (More Automated)**
+You can use AWS Resource Groups to **automate discovery of resources** in a subnet.
+
+### **Step 1: Create a Query to Find Resources in a Subnet**
+```sh
+aws resourcegroupstaggingapi get-resources \
+    --resource-type-filters "ec2" "rds" "lambda" "elasticache" "ecs" "elbv2" \
+    --query 'ResourceTagMappingList[?contains(ResourceARN, `subnet-xxxxxxxx`)]' \
+    --output table
+```
+👉 Replace **subnet-xxxxxxxx** with your actual **Subnet ID**.
+
+This command searches for **all tagged resources** in the subnet.
+
+---
+
+## **Option 3: Using AWS Config (For GUI-based Inspection)**
+If you want a **GUI-based option**, AWS Config can **list all resources** in a subnet.
+
+### **Enable AWS Config and Run:**
+```sh
+aws configservice list-discovered-resources --resource-type AWS::EC2::Subnet --query 'resourceIdentifiers'
+```
+
+Then, go to the **AWS Console** → **AWS Config** → **Resources** → **Filter by Subnet ID**.
+
+---
+
+## **Best Option for Scripting?**
+- **If you want an automated script**, use **Option 1 (CLI Query Script)**.
+- **If you need a centralized AWS service**, use **Option 2 (AWS Resource Groups)**.
+- **For GUI-based inspection**, use **Option 3 (AWS Config)**.
+
+Would you like a Terraform script to **detect and migrate resources** automatically? 🚀
