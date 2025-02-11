@@ -1,89 +1,85 @@
-combined_html = "<div style='width:80%; margin:0 auto;'>" + summary_html + "<br><br>" + breakdown_html + "</div>"
+########################
 
 
-########
-def create_report_html(...):
-    ...
-    BODY_HTML = "<div style='width:80%; margin:0 auto;'>"  # wrap everything
-    BODY_HTML += "<h2>AWS Monthly Cost Report for Accounts - Summary</h2>"
-    # (rest of your table code)
-    ...
-    BODY_HTML += "</div>"  # close the wrapper
-    return BODY_HTML
-###############
+### **📌 FSx Backup Cost Analysis Over 6 Months**
+Assuming:
+✅ **Provisioned FSx Storage Capacity:** **22TB**  
+✅ **Actual Data Stored:** **15TB**  
+✅ **Backup Retention:** **Full backup every month**  
+✅ **FSx Backup Cost:** **$0.05 per GB-month**  
+✅ **S3 Glacier Cost (archived backups):** **$0.01 per GB-month**  
 
+---
 
+## **1️⃣ FSx Backup Cost Calculation (No Glacier Archiving)**
+If we take a **full backup every month** and retain all previous backups, the backup **storage consumption** grows cumulatively.
 
-final_info[svc] = {
-    "overallCurr": curr_overall,
-    "overallDeltaPct": overall_delta,
-    "teamDeltaPct": team_delta_pct,
-    "teamDeltaDollar": team_delta_dollar,
-    "teamPrevCost": prev_team  # <-- add this new field
-}
+| **Month** | **Backup Size (Cumulative TB)** | **Backup Cost (0.05 per GB)** |
+|----------|-----------------|-------------------|
+| **Month 1** | **15TB** | **$750** |
+| **Month 2** | **30TB** | **$1,500** |
+| **Month 3** | **45TB** | **$2,250** |
+| **Month 4** | **60TB** | **$3,000** |
+| **Month 5** | **75TB** | **$3,750** |
+| **Month 6** | **90TB** | **$4,500** |
 
-##################
+🚨 **By Month 6, the backup cost reaches $4,500/month**.
 
-def generate_html_table_with_team(final_info, acct_no):
+---
 
-    def evaluate_change(value):
-        ...
-        # (Same as before for percentages)
-    
-    def evaluate_dollar(delta_dollar, prev_cost):
-        """
-        Convert the absolute dollar difference into a ratio
-        so we can color-code with the same thresholds.
-        e.g., ratio = (delta_dollar / prev_cost)
-        """
-        if prev_cost == 0:
-            return ""  # Can't compute ratio from zero
-        ratio = delta_dollar / prev_cost
-        html_ratio = evaluate_change(ratio)  # reuse the same function
-        return html_ratio
+## **2️⃣ FSx Backup Cost with Monthly Glacier Archiving**
+If **each month's backup is archived to S3 Glacier**, the FSx backup cost remains constant at **only the latest backup (15TB)**, while older backups shift to **S3 Glacier ($0.01 per GB-month)**.
 
-    html = f"""
-    <h3>Team vs. Overall Cost (Account {acct_no})</h3>
-    <table border="1" style="border-collapse: collapse; font-family: Arial, sans-serif;">
-      <tr style="background-color: SteelBlue; color: white;">
-        <th>Service Name</th>
-        <th>Overall Cost</th>
-        <th>Overall Δ%</th>
-        <th>Team Δ%</th>
-        <th>Team Δ$</th>
-      </tr>
-    """
+### **FSx Backup Cost (Only Latest Backup Retained)**
+| **Month** | **FSx Backup (TB) in Primary Storage** | **FSx Backup Cost (0.05 per GB)** |
+|----------|-----------------|-------------------|
+| **Month 1** | **15TB** | **$750** |
+| **Month 2** | **15TB** | **$750** |
+| **Month 3** | **15TB** | **$750** |
+| **Month 4** | **15TB** | **$750** |
+| **Month 5** | **15TB** | **$750** |
+| **Month 6** | **15TB** | **$750** |
 
-    for svc in sorted(final_info.keys()):
-        row = final_info[svc]
-        overall_curr = row["overallCurr"]
-        overall_delta_pct = row["overallDeltaPct"]
-        team_delta_pct = row["teamDeltaPct"]
-        team_delta_dollar = row["teamDeltaDollar"]
-        team_prev_cost = row.get("teamPrevCost", 0.0)  # the new field
+✅ **FSx Backup Cost remains constant at** **$750/month**.
 
-        html += "<tr>"
-        html += f"<td style='padding:4px;'>{svc}</td>"
-        html += f"<td style='text-align:right; padding:4px;'>$ {overall_curr:,.2f}</td>"
+### **S3 Glacier Cost (Older Backups)**
+Each previous month’s **15TB backup is moved to S3 Glacier ($0.01 per GB-month)**.
 
-        # Overall Δ%
-        if overall_delta_pct is not None:
-            html += f"<td style='text-align:right; padding:4px;'>{evaluate_change(overall_delta_pct)}</td>"
-        else:
-            html += "<td>&nbsp;</td>"
+| **Month** | **Archived Data in S3 Glacier (TB)** | **Glacier Cost (0.01 per GB)** |
+|----------|-----------------|-------------------|
+| **Month 1** | **0TB** | **$0** |
+| **Month 2** | **15TB** | **$150** |
+| **Month 3** | **30TB** | **$300** |
+| **Month 4** | **45TB** | **$450** |
+| **Month 5** | **60TB** | **$600** |
+| **Month 6** | **75TB** | **$750** |
 
-        # Team Δ%
-        if team_delta_pct is not None:
-            html += f"<td style='text-align:right; padding:4px;'>{evaluate_change(team_delta_pct)}</td>"
-        else:
-            html += "<td>&nbsp;</td>"
+### **Total Backup Cost (FSx + S3 Glacier)**
+| **Month** | **FSx Backup Cost** | **S3 Glacier Backup Cost** | **Total Cost** |
+|----------|-----------------|----------------------|--------------|
+| **Month 1** | **$750** | **$0** | **$750** |
+| **Month 2** | **$750** | **$150** | **$900** |
+| **Month 3** | **$750** | **$300** | **$1,050** |
+| **Month 4** | **$750** | **$450** | **$1,200** |
+| **Month 5** | **$750** | **$600** | **$1,350** |
+| **Month 6** | **$750** | **$750** | **$1,500** |
 
-        # Team Δ$ (colored)
-        # Convert it into ratio and color code
-        ratio_html = evaluate_dollar(team_delta_dollar, team_prev_cost)
-        html += f"<td style='text-align:right; padding:4px;'>$ {team_delta_dollar:,.2f} {ratio_html}</td>"
+🚀 **By Month 6, total cost with Glacier is $1,500/month, compared to $4,500 without Glacier—saving $3,000 per month.**  
 
-        html += "</tr>"
+---
 
-    html += "</table>"
-    return html
+## **3️⃣ 🚀 Cost Savings Summary**
+| **Scenario** | **Total Cost (6 Months)** | **Monthly Cost After 6 Months** |
+|-------------|------------------|--------------------------|
+| **FSx Backup Only** | **$13,500** | **$4,500/month** |
+| **FSx + Glacier Archiving** | **$6,450** | **$1,500/month** |
+| **Savings Using Glacier** | **$7,050 saved** | **$3,000 saved/month** |
+
+✅ **Using Glacier reduces backup cost by over 66%!**  
+
+---
+
+## **🚀 Recommendation**
+If **long-term retention of FSx backups is required**, migrate **old backups to S3 Glacier automatically**.
+
+✅ **Would you like Terraform or AWS CLI commands to automate this Glacier backup policy?** 🚀
