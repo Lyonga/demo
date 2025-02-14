@@ -1,0 +1,118 @@
+resource "aws_launch_template" "linux_instance_launch_template" {
+  name                  = local.linux_launch_template_name
+  image_id             = var.linux_image_id
+  instance_type        = var.ec2_instance_type
+  key_name             = var.ec2_instance_key_name
+  instance_initiated_shutdown_behavior = "terminate"
+  monitoring {
+    enabled = true
+  }
+  iam_instance_profile {
+    name = aws_iam_instance_profile.ec2_instance_profile.name
+  }
+  
+
+  block_device_mappings {
+    device_name = "/dev/xvda"    
+    ebs {
+      volume_size           = 8
+      volume_type           = "gp3"
+      delete_on_termination = true
+      encrypted             = true
+      kms_key_id            = var.ebs_kms_key_arn  
+    }
+  }
+  tag_specifications {
+    resource_type = "instance"
+    tags = merge(
+    {
+      Name = "${var.environment_name}-template-${var.team}"
+    },
+    local.default_tags
+    )
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = merge(
+      {
+        Name = "${var.environment_name}-template-volume-${var.team}"
+      },
+      local.default_tags
+    )
+  }
+  metadata_options {
+    http_tokens               = "required"
+    http_endpoint             = "enabled"
+    http_put_response_hop_limit = 1
+  }
+}
+
+resource "aws_instance" "linux_ec2" {
+  ami                         = aws_launch_template.linux_instance_launch_template.image_id
+  instance_type               = aws_launch_template.linux_instance_launch_template.instance_type
+  subnet_id                   = var.vpc_ec2_subnet1
+  availability_zone           = var.availability_zone
+  key_name                    = aws_launch_template.linux_instance_launch_template.key_name
+  iam_instance_profile        = aws_launch_template.linux_instance_launch_template.iam_instance_profile[0].name
+  #disable_api_termination     =  true
+  launch_template {
+    id      = aws_launch_template.linux_instance_launch_template.id
+    version = aws_launch_template.linux_instance_launch_template.latest_version
+  }
+  lifecycle {
+    ignore_changes = [
+      ebs_optimized, hibernation, security_groups, monitoring, root_block_device, tags_all, root_block_device, launch_template,
+      credit_specification, network_interface, iam_instance_profile
+      ]
+    # prevent_destroy = true
+  }
+  ebs_optimized = true
+  security_groups = [
+    aws_security_group.web_app_sg.id
+  ]
+  
+  tags = merge(
+    {
+      Name = "${var.stack_name}-linux-cs-instance-${var.team}"
+      DomainJoin = "true"
+    },
+    local.default_tags
+  )
+
+}
+
+resource "aws_ssm_document" "adjoin_domain" {
+ name          = local.linux_adjoin_name
+ document_type = "Command"
+ tags          = local.default_tags
+ content = jsonencode(
+  {
+    "schemaVersion" = "2.2"
+    "description"   = "ssm document for Automatic Domain Join Configuration created by Terraform"
+    "mainSteps" = [
+      {
+        "action" = "aws:domainJoin",
+        "name"   = "domainJoin",
+        "inputs" = {
+          "directoryId": var.ad_directory_id,
+          "directoryName" : var.ad_directory_name
+       "dnsIpAddresses" : [
+                     var.dns_ip_addresses[0],
+                     var.dns_ip_addresses[1]
+                  ]
+          }
+        }
+      ]
+    }
+  )
+}
+
+resource "aws_ssm_association" "ad_join_domain_association" {
+  depends_on = [ aws_instance.generic ]
+  name = aws_ssm_document.adjoin_domain.name
+  targets {
+    key    = "InstanceIds"
+    values = [ aws_instance.linux_ec2.id ]
+  }
+}
