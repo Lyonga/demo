@@ -1,0 +1,41 @@
+name: Push and PR triggered terraform
+
+on:
+  push:
+    branches:
+      - feature/main
+      - feature/qa
+      - main
+  pull_request:
+    branches: "**"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  dev-apply-terraform:
+# This condition allows the dev job to run if either the push trigger target or the pull request target is feature/main
+    if: github.ref == 'refs/heads/feature/main' || github.base_ref == 'feature/main'
+    uses: ./.github/workflows/terraform-pipeline.yml
+    secrets: inherit
+    with:
+      environment: "dev"
+# For push triggers we run an apply and for pull request triggers we run a plan
+      command: ${{ github.event_name == 'pull_request' && 'plan' || 'apply' }}
+
+  qa-run-terraform:
+    if: github.ref == 'refs/heads/feature/qa' || github.base_ref == 'feature/qa'
+    uses: ./.github/workflows/terraform-pipeline.yml
+    secrets: inherit
+    with:
+      environment: "qa"
+      command:  ${{ github.event_name == 'pull_request' && 'plan' || 'apply' }}
+
+  prod-run-terraform:
+    if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
+    uses: ./.github/workflows/terraform-pipeline.yml
+    secrets: inherit
+    with:
+      environment: "prod"
+      command: ${{ github.event_name == 'pull_request' && 'plan' || 'apply' }}
