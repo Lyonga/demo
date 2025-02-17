@@ -1,135 +1,100 @@
-#########
-////////////////////////////////////////////////////////////////////////
-// File: terraform/environments/dev/main.tf
-////////////////////////////////////////////////////////////////////////
 
-terraform {
-  required_version = ">= 1.3.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 4.0"
-    }
+resource "aws_cloudwatch_metric_alarm" "ec2_instance_auto_recovery" {
+  alarm_name                = local.instance_auto_recovery_alarm-name
+  alarm_description         = "Automatically recover EC2 instance on failure"
+  metric_name               = "StatusCheckFailed_System"
+  namespace                 = "AWS/EC2"
+  statistic                 = "Minimum"
+  period                    = 900
+  evaluation_periods        = 2
+  threshold                 = 2
+  comparison_operator       = "GreaterThanOrEqualToThreshold"
+  #alarm_actions             = ["arn:aws:automate:${var.region}:ec2:recover", aws_sns_topic.critical_sns.arn]   ###FOR NON t2.MICRO instance types
+  alarm_actions             = [aws_sns_topic.critical_sns.arn]
+  # alarm_actions             = [
+  #   aws_sns_topic.critical_sns.arn,
+  #   "arn:aws:automate:${var.region}:ec2:recover", ###if we need application restarted by linked ssm doc
+  #   aws_ssm_document.redeploy_application.arn
+  # ]
+  dimensions = {
+    InstanceId = aws_instance.linux_ec2.id
   }
-}
-
-# Optionally define your backend here or in a backend_config/
-provider "aws" {
-  region = var.aws_region
-}
-
-module "linux_hardened_ec2" {
-  source = "../../modules/ec2-hardened"
-
-  name_prefix                = "${var.env_name}-linux"
-  team                       = var.team
-  default_tags               = var.default_tags
-  launch_template_name       = "${var.env_name}-launch-template"
-  instance_type              = var.instance_type
-  key_name                   = var.key_name
-  ami_id                     = var.ami_id
-  iam_instance_profile_name  = var.ec2_instance_profile_name
-  ebs_kms_key_arn            = var.ebs_kms_key_arn
-  subnet_id                  = var.subnet_id
-  availability_zone          = var.availability_zone
-  security_group_ids         = var.security_group_ids
-
-  enable_ad_join             = var.enable_ad_join
-  ad_join_document_name      = var.ad_join_document_name
-  ad_directory_id            = var.ad_directory_id
-  ad_directory_name          = var.ad_directory_name
-  ad_dns_ip_addresses        = var.ad_dns_ip_addresses
+  tags          = local.default_tags
 }
 
 
-////////////////////////////////////////////////////////////////////////
-// File: terraform/environments/dev/variables.tf
-////////////////////////////////////////////////////////////////////////
-
-variable "aws_region" {
-  type    = string
-  default = "us-east-1"
-}
-
-variable "env_name" {
-  type    = string
-  default = "dev"
-}
-
-variable "team" {
-  type    = string
-  default = "my-team"
-}
-
-variable "default_tags" {
-  type = map(string)
-  default = {
-    "Owner"       = "my-team"
-    "Environment" = "dev"
+# CloudWatch Alarms
+resource "aws_cloudwatch_metric_alarm" "cpu_alarm_warning" {
+  alarm_name                = local.cpu_alarm-name
+  comparison_operator       = "GreaterThanOrEqualToThreshold"
+  evaluation_periods        = 1
+  metric_name               = "CPUUtilization"
+  namespace                 = "AWS/EC2"
+  period                    = 60
+  statistic                 = "Average"
+  threshold                 = 90
+  alarm_description         = "High CPU Usage 70%"
+  alarm_actions             = [aws_sns_topic.critical_sns.arn]
+  #ok_actions                = [aws_sns_topic.warning_sns.arn]
+  dimensions = {
+    InstanceId = aws_instance.linux_ec2.id
   }
+  tags          = local.default_tags
 }
 
-variable "instance_type" {
-  type    = string
-  default = "t3.micro"
+resource "aws_cloudwatch_metric_alarm" "memory_alarm_critical" {
+  alarm_name                = local.memory_alarm-name
+  comparison_operator       = "GreaterThanOrEqualToThreshold"
+  evaluation_periods        = 2
+  metric_name               = "mem_used_percent"
+  namespace                 = "CWAgent"
+  period                    = 300
+  statistic                 = "Average"
+  threshold                 = 90
+  alarm_description         = "High Memory Usage 90%"
+  alarm_actions             = [aws_sns_topic.critical_sns.arn]
+  #ok_actions                = [aws_sns_topic.warning_sns.arn]
+  dimensions = {
+    InstanceId = aws_instance.linux_ec2.id
+  }
+  tags          = local.default_tags
 }
 
-variable "key_name" {
-  type = string
+resource "aws_cloudwatch_metric_alarm" "instance_status_alarm_critical" {
+  alarm_name                = local.instance_status_check_alarm-name
+  comparison_operator       = "GreaterThanThreshold"
+  evaluation_periods        = 5
+  metric_name               = "StatusCheckFailed_Instance"
+  namespace                 = "AWS/EC2"
+  period                    = 300
+  statistic                 = "Minimum"
+  threshold                 = 0
+  alarm_description         = "Instance Status Check Failed"
+  alarm_actions             = [aws_sns_topic.critical_sns.arn, "arn:aws:automate:${var.region}:ec2:reboot"]
+  ok_actions                = [aws_sns_topic.warning_sns.arn]
+  dimensions = {
+    InstanceId = aws_instance.linux_ec2.id
+  }
+  tags          = local.default_tags
 }
 
-variable "ami_id" {
-  type = string
-  default = "ami-0123456789abcdef0"
-}
-
-variable "ec2_instance_profile_name" {
-  type    = string
-  default = ""
-}
-
-variable "ebs_kms_key_arn" {
-  type    = string
-  default = ""
-}
-
-variable "subnet_id" {
-  type    = string
-  default = "subnet-0abc12345def6789"
-}
-
-variable "availability_zone" {
-  type    = string
-  default = "us-east-1a"
-}
-
-variable "security_group_ids" {
-  type    = list(string)
-  default = []
-}
-
-# Domain join toggles
-variable "enable_ad_join" {
-  type    = bool
-  default = false
-}
-
-variable "ad_join_document_name" {
-  type    = string
-  default = "my-ad-join-doc"
-}
-
-variable "ad_directory_id" {
-  type    = string
-  default = ""
-}
-
-variable "ad_directory_name" {
-  type    = string
-  default = ""
-}
-
-variable "ad_dns_ip_addresses" {
-  type    = list(string)
-  default = []
+resource "aws_cloudwatch_metric_alarm" "disk_space_alarm_critical" {
+  alarm_name                = local.disk_space_alarm-name
+  comparison_operator       = "GreaterThanOrEqualToThreshold"
+  evaluation_periods        = 2
+  metric_name               = "disk_used_percent"
+  namespace                 = "CWAgent"
+  period                    = 300
+  statistic                 = "Average"
+  threshold                 = 80
+  alarm_description         = "Disk Space Usage Over 95%"
+  alarm_actions             = [aws_sns_topic.critical_sns.arn]
+  #ok_actions                = [aws_sns_topic.warning_sns.arn]
+  dimensions = {
+    InstanceId = aws_instance.linux_ec2.id
+    device     = var.volume
+    path       = var.path
+    fstype     = var.fstype
+  }
+  tags          = local.default_tags
 }
