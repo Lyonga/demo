@@ -1,262 +1,251 @@
-resource "aws_sns_topic" "warning_sns" {
-  name = local.warning_sns
+resource "aws_ssm_document" "install_awscli_linux" {
+  name          = "Ngl-AwsCli-LinuxDocument"
+  document_type = "Automation"
   tags          = local.default_tags
+
+  content = jsonencode({
+    schemaVersion = "0.3",
+    description   = "Install AWS CLI on Linux instances.",
+    parameters    = {
+      InstanceIds = { type = "StringList", description = "List of EC2 Instance IDs." }
+      Region      = { type = "String", default = "${data.aws_region.current.name}" }
+    },
+    mainSteps = [
+      {
+        name     = "DownloadAWSCLI",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/awscli",
+              "curl 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o '/tmp/awscliv2.zip'",
+              "unzip -o /tmp/awscliv2.zip -d /tmp/awscli"
+            ]
+          }
+        }
+      },
+      {
+        name     = "InstallAWSCLI",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "sudo /tmp/awscli/aws/install",
+              "export PATH=$PATH:/usr/local/bin",
+              "aws --version"
+            ]
+          }
+        }
+      }
+    ]
+  })
 }
 
-resource "aws_sns_topic" "critical_sns" {
-  name = local.critical_sns
+resource "aws_ssm_document" "install_agents_linux" {
+  name          = "Crowdstrike-Duo-Rapid7-LinuxOs-x86-64"
+  document_type = "Automation"
   tags          = local.default_tags
+
+  content = jsonencode({
+    schemaVersion = "0.3",
+    assumeRole    = aws_iam_role.automation_role.arn,
+    description   = "Install security agents on Linux EC2 instances.",
+    parameters    = {
+      InstanceIds    = { type = "StringList", description = "List of EC2 Instance IDs." }
+      S3BucketName   = { type = "String", description = "S3 bucket containing the installers.", default = "${var.bucket_name}" }
+      Region         = { type = "String", default = "${data.aws_region.current.name}" }
+      CrowdStrikeCID = { type = "String", description = "CrowdStrike CID for sensor installation.", default=data.aws_ssm_parameter.crowdStrike_cid.value }
+      DuoIKEY        = { type = "String", description = "Duo integration key.", default=data.aws_ssm_parameter.duo_ikey.value }
+      DuoSKEY        = { type = "String", description = "Duo secret key.", default=data.aws_ssm_parameter.duo_skey.value}
+      DuoApiHost     = { type = "String", description = "Duo host address.", default=data.aws_ssm_parameter.duo_api_host.value }
+    },
+    mainSteps = [
+      {
+        name     = "InstallCrowdStrike",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/agents",
+              "aws s3 cp s3://{{ S3BucketName }}/agents/falcon-sensor-7.16.0-16903.amzn2023.x86_64.rpm /tmp/agents/falcon-sensor-7.16.0-16903.amzn2023.x86_64.rpm",
+              "if [ ! -f /tmp/agents/falcon-sensor-7.16.0-16903.amzn2023.x86_64.rpm ]; then",
+              "  echo 'falcon-sensor-7.16.0-16903.amzn2023.x86_64.rpm not found. Exiting.'",
+              "  exit 1",
+              "fi",
+              "sudo rpm -ivh /tmp/agents/falcon-sensor-7.16.0-16903.amzn2023.x86_64.rpm",
+              "sudo /opt/CrowdStrike/falconctl -s --cid={{ CrowdStrikeCID }}",
+              "sudo systemctl enable falcon-sensor",
+              "sudo systemctl start falcon-sensor",
+              "echo 'CrowdStrike installation completed.'"
+            ]
+          }
+        }
+      },
+      {
+        name     = "InstallRapid7",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/agents",
+              "aws s3 cp s3://{{ S3BucketName }}/agents/rapid7-insight-agent-4.0.13.32-1.x86_64.rpm /tmp/agents/rapid7-insight-agent-4.0.13.32-1.x86_64.rpm",
+              "if [ ! -f /tmp/agents/rapid7-insight-agent-4.0.13.32-1.x86_64.rpm ]; then",
+              "  echo 'rapid7-insight-agent-4.0.13.32-1.x86_64.rpm not found. Exiting.'",
+              "  exit 1",
+              "fi",
+              "sudo rpm -ivh /tmp/agents/rapid7-insight-agent-4.0.13.32-1.x86_64.rpm",
+              "echo 'Rapid7 has been installed stsrting service.'",
+              "sudo systemctl enable ir_agent.service",
+              "sudo systemctl start ir_agent.service",
+              "systemctl status ir_agent.service",
+              "echo 'Rapid7 installation completed.'"
+            ]
+          }
+        }
+      },
+      {
+        name     = "InstallDuo",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/agents",
+              "aws s3 cp s3://{{ S3BucketName }}/agents/duo_unix-2.0.4.tar.gz /tmp/agents/duo_unix-2.0.4.tar.gz",
+              "if [ ! -f /tmp/agents/duo_unix-2.0.4.tar.gz ]; then",
+              "  echo 'duo_unix-2.0.4.tar.gz not found. Exiting.'",
+              "  exit 1",
+              "fi",
+
+              ##Dependency installation
+              "sudo yum install openssl-devel -y",
+              "sudo yum install pam-devel -y",
+              "sudo yum install selinux-policy-devel -y",
+              "sudo yum install bzip2 -y",
+              "sudo yum install gcc -y",
+
+              # Extract the tar.gz file
+              "tar -xzf /tmp/agents/duo_unix-2.0.4.tar.gz -C /tmp/agents/",
+
+              # Change directory to the extracted folder
+              "cd /tmp/agents/duo_unix-2.0.4 || exit 1",
+
+              "./configure --prefix=/usr && make && sudo make install",
+
+              # Configure pam_duo
+              # "sudo mkdir -p /etc/duo",
+              # "cd /login_duo",
+              # "sudo mv pam_duo.conf login_duo.conf",
+              # "sudo mv login_duo.conf /etc/duo/login_duo.conf",
+              #"sudo bash -c 'cat <<EOF > /etc/login_duo.conf [duo] ikey={{ DuoIKEY }} skey={{ DuoSKEY }} host={{ DuoApiHost }}  pushinfo = 'yes' autopush = 'yes' EOF'",
+              "echo '[duo]' | sudo tee /etc/duo/login_duo.conf",
+              "echo 'ikey={{ DuoIKEY }}' | sudo tee -a /etc/duo/login_duo.conf",
+              "echo 'skey={{ DuoSKEY }}' | sudo tee -a /etc/duo/login_duo.conf",
+              "echo 'host={{ DuoApiHost }}' | sudo tee -a /etc/duo/login_duo.conf",
+              "echo 'pushinfo = yes' | sudo tee -a /etc/duo/login_duo.conf",
+              "echo 'autopush = yes' | sudo tee -a /etc/duo/login_duo.conf",
+              "echo 'Duo installation completed successfully.'"
+
+            ]
+          }
+        }
+      }
+    ]
+  })
 }
 
-resource "aws_sns_topic_subscription" "warning_email" {
-  topic_arn = aws_sns_topic.warning_sns.arn
-  protocol  = "email"
-  endpoint  = var.email_address
+resource "aws_ssm_document" "install_agents_linuxV1" {
+  name          = "Rapid7-Syxsense-LinuxOs-aarch64-install"
+  document_type = "Automation"
+  tags          = local.default_tags
+
+  content = jsonencode({
+    schemaVersion = "0.3",
+    assumeRole    = aws_iam_role.automation_role.arn,
+    description   = "Install security agents on Linux EC2 instances.",
+    parameters    = {
+      InstanceIds    = { type = "StringList", description = "List of EC2 Instance IDs." }
+      S3BucketName   = { type = "String", description = "S3 bucket containing the installers.", default = "${var.bucket_name}" }
+      Region         = { type = "String", default = "${data.aws_region.current.name}" }
+      SyxsenseInstanceName = { type = "String", description = "linux instance name to be installed." }
+    },
+    mainSteps = [
+      {
+        name     = "InstallRapid7",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/agents",
+              "aws s3 cp s3://{{ S3BucketName }}/agents/rapid7-insight-agent-4.0.13.32-1.aarch64.rpm /tmp/agents/rapid7-insight-agent-4.0.13.32-1.aarch64.rpm",
+              "if [ ! -f /tmp/agents/rapid7-insight-agent-4.0.13.32-1.aarch64.rpm ]; then",
+              "  echo 'rapid7-insight-agent-4.0.13.32-1.aarch64.rpm not found. Exiting.'",
+              "  exit 1",
+              "fi",
+              "sudo rpm -ivh /tmp/agents/rapid7-insight-agent-4.0.13.32-1.aarch64.rpm",
+              "echo 'Rapid7 has been installed stsrting service.'",
+              "sudo systemctl enable ir_agent.service",
+              "sudo systemctl start ir_agent.service",
+              "systemctl status ir_agent.service",
+              "systemctl status ir_agent.service",
+              "echo 'Rapid7 installation completed.'"
+            ]
+          }
+        }
+      },
+      {
+        name     = "InstallSyxsense",
+        action   = "aws:runCommand",
+        inputs   = {
+          DocumentName = "AWS-RunShellScript",
+          InstanceIds  = "{{ InstanceIds }}",
+          Parameters   = {
+            commands = [
+              "mkdir -p /tmp/agents",
+              "aws s3 cp s3://{{ S3BucketName }}/agents/syxsenseresponder.latest.linux-x64.rpm /tmp/agents/syxsenseresponder.latest.linux-x64.rpm",
+              "if [ ! -f /tmp/agents/syxsenseresponder.latest.linux-x64.rpm ]; then",
+              "  echo 'SyxsenseResponder.rpm not found. Exiting.'",
+              "  exit 1",
+              "fi",
+              "sudo yum install -y /tmp/syxsenseresponder.latest.linux-x64.rpm",
+              "sudo /usr/local/bin/SyxsenseResponder --instanceName={{ SyxsenseInstanceName }}",
+              "rm -f /tmp/syxsenseresponder.latest.linux-x64.rpm",
+              "echo 'Rapid7 installation completed.'"
+            ]
+          }
+        }
+      }
+    ]
+  })
 }
 
-resource "aws_sns_topic_subscription" "critical_email" {
-  topic_arn = aws_sns_topic.critical_sns.arn
-  protocol  = "email"
-  endpoint  = var.email_address
-}
-output "instance_id" {
-  description = "EC2 Instance ID"
-  value       = aws_instance.linux_ec2.id
+data "aws_ssm_parameter" "duo_ikey" {
+  name            = "/ngl/duo/ikey"
+  with_decryption = true
 }
 
-
-
-
-
-
-
-
-Below is a **complete example** showing:
-
-1. **How** to expose an EC2 instance ID via a module output (called `instance_id_output` or similar).
-2. **How** to create an **SNS** module with “warning” and “critical” topics.
-3. **How** to reference those outputs (both EC2 ID and SNS ARNs) from your **root** module (or environment) to pass into the CloudWatch alarms module.
-
-You can adapt folder names and variable names as needed.
-
----
-
-## 1. EC2 Module (`modules/compute`)
-
-Assume you have a module that creates an EC2 instance (`aws_instance.linux_ec2`). In its `outputs.tf`, you expose the instance’s ID. For example:
-
-```hcl
-////////////////////////////////////////////////////////////////////////
-// modules/compute/outputs.tf
-////////////////////////////////////////////////////////////////////////
-output "instance_id" {
-  description = "EC2 Instance ID"
-  value       = aws_instance.linux_ec2.id
-}
-```
-
-**In the same module**, you likely have your `main.tf` that defines `aws_instance.linux_ec2`. For example:
-
-```hcl
-////////////////////////////////////////////////////////////////////////
-// modules/compute/main.tf
-////////////////////////////////////////////////////////////////////////
-resource "aws_instance" "linux_ec2" {
-  ami           = var.ami_id
-  instance_type = var.instance_type
-  # ... etc.
-}
-```
-
-After Terraform runs, **any user** of this module can access `module.compute.instance_id`.
-
----
-
-## 2. SNS Module (`modules/sns`)
-
-Create a second module that manages your SNS topics and subscriptions. For example:
-
-```hcl
-////////////////////////////////////////////////////////////////////////
-// modules/sns/main.tf
-////////////////////////////////////////////////////////////////////////
-
-resource "aws_sns_topic" "warning_sns" {
-  name = var.warning_sns_name
-  tags = var.default_tags
+data "aws_ssm_parameter" "duo_skey" {
+  name            = "/ngl/duo/skey"
+  with_decryption = true
 }
 
-resource "aws_sns_topic" "critical_sns" {
-  name = var.critical_sns_name
-  tags = var.default_tags
+data "aws_ssm_parameter" "duo_api_host" {
+  name            = "/ngl/duo/host"
+  with_decryption = false  # or true if you stored it as SecureString
 }
 
-resource "aws_sns_topic_subscription" "warning_email" {
-  topic_arn = aws_sns_topic.warning_sns.arn
-  protocol  = "email"
-  endpoint  = var.email_address
+data "aws_ssm_parameter" "crowdStrike_cid" {
+  name            = "/ngl/cs/cid"
+  with_decryption = false  # or true if you stored it as SecureString
 }
-
-resource "aws_sns_topic_subscription" "critical_email" {
-  topic_arn = aws_sns_topic.critical_sns.arn
-  protocol  = "email"
-  endpoint  = var.email_address
-}
-```
-
-### 2.1 `variables.tf` for the SNS Module
-
-```hcl
-////////////////////////////////////////////////////////////////////////
-// modules/sns/variables.tf
-////////////////////////////////////////////////////////////////////////
-variable "warning_sns_name" {
-  type        = string
-  description = "Name of the warning SNS topic"
-  default     = "warning-topic"
-}
-
-variable "critical_sns_name" {
-  type        = string
-  description = "Name of the critical SNS topic"
-  default     = "critical-topic"
-}
-
-variable "email_address" {
-  type        = string
-  description = "Email address to subscribe"
-}
-
-variable "default_tags" {
-  type        = map(string)
-  default     = {}
-}
-```
-
-### 2.2 `outputs.tf` in the SNS Module
-
-```hcl
-////////////////////////////////////////////////////////////////////////
-// modules/sns/outputs.tf
-////////////////////////////////////////////////////////////////////////
-output "warning_sns_arn" {
-  description = "ARN of the warning SNS topic"
-  value       = aws_sns_topic.warning_sns.arn
-}
-
-output "critical_sns_arn" {
-  description = "ARN of the critical SNS topic"
-  value       = aws_sns_topic.critical_sns.arn
-}
-```
-
-Now this SNS module can be reused to spin up the same pattern of “warning” and “critical” topics.
-
----
-
-## 3. Consuming These Modules in Your Root `main.tf`
-
-In your **root** or environment folder (often where you have your main Terraform stack), you can define something like:
-
-```hcl
-////////////////////////////////////////////////////////////////////////
-// main.tf (root or environment)
-////////////////////////////////////////////////////////////////////////
-
-provider "aws" {
-  region = var.aws_region
-}
-
-module "compute" {
-  source = "./modules/compute"
-
-  # pass variables (like ami_id, instance_type, etc.)
-  ami_id         = var.ami_id
-  instance_type  = var.instance_type
-  # ...
-}
-
-module "sns" {
-  source = "./modules/sns"
-
-  warning_sns_name  = "my-warning-topic"
-  critical_sns_name = "my-critical-topic"
-  email_address     = "alerts@example.com"
-
-  default_tags = {
-    Environment = var.environment
-  }
-}
-
-module "cw_alarms" {
-  source = "./modules/cw-alarms"
-
-  instance_id = module.compute.instance_id    # <--- referencing the EC2 module output
-  region      = var.aws_region
-
-  sns_critical_arn = module.sns.critical_sns_arn
-  sns_warning_arn  = module.sns.warning_sns_arn
-
-  default_tags = {
-    Environment = var.environment
-  }
-
-  # (Optional) override any defaults for alarm names or thresholds
-  # cpu_threshold    = 80
-  # memory_threshold = 85
-}
-```
-
-### Explanation
-
-1. **`module "compute"`** references the `ec2-hardening/modules/compute` folder. It creates an EC2 instance and **exports** `instance_id`.  
-2. **`module "sns"`** references the `ec2-hardening/modules/sns` folder. It creates your “warning” and “critical” topics, plus the email subscriptions. It then **exports** two ARNs.  
-3. **`module "cw_alarms"`** references the `ec2-hardening/modules/cw-alarms` folder. It needs:
-   - The **EC2 instance ID** to attach the alarms to: `module.compute.instance_id`.  
-   - The **SNS ARNs** for “critical” and “warning”: `module.sns.critical_sns_arn`, `module.sns.warning_sns_arn`.  
-   - Any other variables (region, tags, etc.).
-
----
-
-## 4. Putting It All Together
-
-1. **Outputs** in `modules/compute`:
-
-   ```hcl
-   output "instance_id" {
-     description = "EC2 Instance ID"
-     value       = aws_instance.linux_ec2.id
-   }
-   ```
-
-   This is how “instance_id_output” (or simply `instance_id`) is made available.
-
-2. **Outputs** in `modules/sns`:
-
-   ```hcl
-   output "warning_sns_arn" {
-     value = aws_sns_topic.warning_sns.arn
-   }
-
-   output "critical_sns_arn" {
-     value = aws_sns_topic.critical_sns.arn
-   }
-   ```
-
-3. **Root** or environment code references those outputs by calling `module.<NAME>.<OUTPUT>`. For example:
-   - `module.compute.instance_id`
-   - `module.sns.critical_sns_arn`
-   - `module.sns.warning_sns_arn`
-
-Finally, your CloudWatch alarms module uses those values to define alarms that watch the correct EC2 instance and send notifications to the correct SNS topics.
-
----
-
-### Summary
-
-- **Your EC2 module** has an `output "instance_id"` to expose the EC2 resource’s ID.  
-- **Your SNS module** provides `output "warning_sns_arn"` and `output "critical_sns_arn"`.  
-- **Your CloudWatch alarms module** accepts `instance_id`, `sns_critical_arn`, and `sns_warning_arn` as inputs.  
-- In the **root config**, you wire them together by referencing `module.<ec2_module>.instance_id` and `module.<sns_module>.<sns_output_arn>`.
-
-This pattern is a clean way to **compose** multiple modules, letting each handle a different set of AWS resources while passing needed outputs around.
