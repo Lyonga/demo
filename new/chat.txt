@@ -1,1 +1,38 @@
 terraform state rm aws_cloudwatch_event_rule.every_5_minutes
+
+
+name: "Terraform Pipeline"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  remove_resource_from_state:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Initialize Terraform
+        run: |
+          # Make sure your backend configuration (S3) is accessible here
+          terraform init \
+            -backend-config="bucket=${{ secrets.S3_BUCKET }}" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="key=your-terraform-state-key.tfstate" \
+            -backend-config="dynamodb_table=your-lock-table"
+      
+      - name: Remove Resource from State
+        run: |
+          # This command updates your remote state in S3.
+          terraform state rm aws_cloudwatch_event_rule.every_5_minutes
+      
+      - name: Verify new state
+        run: terraform state list
+
+      - name: Terraform Plan (Optional)
+        run: terraform plan
+
