@@ -1,4 +1,5 @@
-Warning: Failed to decode resource from state
+Error: Resource instance managed by newer provider version
 │ 
-│ Error decoding "aws_cloudwatch_event_rule.every_5_minutes" from prior
-│ state: unsupported attribute "force_destroy"
+│ The current state of aws_cloudwatch_event_rule.every_5_minutes was created
+│ by a newer provider version than is currently selected. Upgrade the aws
+│ provider to work with this state.
