@@ -2,3 +2,238 @@
 
 
 source = "git::ssh://git@github.com/MyOrg/terraform-aws-ec2.git//modules/ec2?ref=my-feature-branch"
+
+
+
+Below is one pattern for handling advanced/optional EC2 parameters (like **elastic GPU**, **elastic inference accelerator**, **core count**, **threads per core**, **CPU credits**, etc.) in your **child module** (the EC2 module) and **passing** them from the **root module**. The main goals are:
+
+1. **Keep them optional** (with defaults) so they don’t clutter your root module if you don’t need them.  
+2. **Allow** advanced users to set them if they do need them.
+
+---
+
+## 1. Defining Optional Variables in the Child Module
+
+In your **child EC2 module** (e.g., `modules/ec2/windows` or `modules/ec2/linux`), you typically define one variable per advanced property. Often you give them **default** values that signal “not used” or “empty.”
+
+### 1.1 Example Variables
+
+```hcl
+////////////////////////////////////////////////////////////////////////
+// variables.tf in your ec2 child module
+////////////////////////////////////////////////////////////////////////
+
+variable "enable_cpu_credits" {
+  type        = bool
+  description = "Whether to enable CPU credits for T instances (unlimited mode)"
+  default     = false
+}
+
+variable "cpu_credits_type" {
+  type        = string
+  description = "Specify 'unlimited' or 'standard'. Takes effect if enable_cpu_credits is true."
+  default     = "unlimited"
+}
+
+variable "core_count" {
+  type        = number
+  description = "Number of CPU cores for the instance"
+  default     = 0
+}
+
+variable "threads_per_core" {
+  type        = number
+  description = "Threads per core. Set to 1 to disable multithreading."
+  default     = 0
+}
+
+variable "elastic_gpu_specifications" {
+  type = list(object({
+    type = string
+  }))
+  description = <<EOT
+List of elastic GPU specs. 
+Example: [{ type = "eg1.medium" }] 
+If empty, none are applied.
+EOT
+  default = []
+}
+
+variable "elastic_inference_accelerator" {
+  type = list(object({
+    type = string
+  }))
+  description = <<EOT
+List of elastic inference accelerator specs.
+Example: [{ type = "eia1.medium" }]
+If empty, none are applied.
+EOT
+  default = []
+}
+```
+
+**Notes**:
+
+- We use **list(object(...))** for `elastic_gpu_specifications` and `elastic_inference_accelerator` because Terraform’s `aws_launch_template` resources typically expect a block that can appear multiple times. For example,  
+  ```hcl
+  elastic_gpu_specifications {
+    type = "eg1.medium"
+  }
+  ```
+- `core_count` and `threads_per_core` can be set to 0 by default, meaning “don’t specify” in the resource.  
+- For CPU credits, you might have a boolean (`enable_cpu_credits`) plus a string (`cpu_credits_type`) if you want extra control. Or just use a single string variable with a default of `null` or `""` if you prefer.
+
+---
+
+## 2. Referencing These Variables in the Launch Template
+
+In your **`main.tf`** for the child module, you’ll have something like:
+
+```hcl
+resource "aws_launch_template" "this" {
+  name_prefix = var.launch_template_name
+
+  # (1) CPU Options
+  dynamic "cpu_options" {
+    for_each = var.core_count > 0 || var.threads_per_core > 0 ? [1] : []
+    content {
+      # Only set these if core_count > 0 or threads_per_core > 0
+      # (Meaning user wants to override them)
+      core_count       = var.core_count > 0 ? var.core_count : null
+      threads_per_core = var.threads_per_core > 0 ? var.threads_per_core : null
+    }
+  }
+
+  # (2) Credit Specifications for T Instances
+  credit_specification {
+    # If the user wants CPU credits
+    count = var.enable_cpu_credits ? 1 : 0
+
+    cpu_credits = var.cpu_credits_type
+  }
+
+  # (3) Elastic GPU
+  dynamic "elastic_gpu_specifications" {
+    for_each = var.elastic_gpu_specifications
+    content {
+      type = elastic_gpu_specifications.value.type
+    }
+  }
+
+  # (4) Elastic Inference
+  dynamic "elastic_inference_accelerator" {
+    for_each = var.elastic_inference_accelerator
+    content {
+      type = elastic_inference_accelerator.value.type
+    }
+  }
+
+  # ... other fields (image_id, instance_type, etc.) ...
+}
+```
+
+### Explanation
+
+1. **CPU Options**:  
+   - We use a **dynamic block** for `cpu_options`. If `core_count` or `threads_per_core` is nonzero, we generate one block. If both are zero, we skip it entirely.  
+2. **Credit Specification**:  
+   - We check `enable_cpu_credits`. If `true`, we set `cpu_credits = var.cpu_credits_type`. If `false`, no block is created (0 count).  
+3. **Elastic GPU**:  
+   - We iterate `var.elastic_gpu_specifications`. Each element is an object like `{ type = "eg1.medium" }`. We create a block for each.  
+4. **Elastic Inference**:  
+   - Same approach as GPU. If the list is empty, the dynamic block is empty, so no specification is set.
+
+**Important**: For the CPU credit specification, a simpler approach is:
+
+```hcl
+credit_specification {
+  cpu_credits = var.enable_cpu_credits ? "unlimited" : "standard"
+}
+```
+
+But that automatically sets a block even if you have a non–T instance. That might be harmless, but it can cause errors if the instance type doesn’t support credits. Using `count =` or conditionals can help you avoid the block entirely for instance types that don’t support credits.
+
+---
+
+## 3. Passing Variables from the Root Module
+
+In your **root** (or environment) code, you can do:
+
+```hcl
+module "ec2_windows" {
+  source = "./modules/ec2/windows"
+
+  ami_id                = var.ami_id
+  instance_type         = "t3.small"
+  launch_template_name  = "my-windows-lt-"
+  enable_cpu_credits    = true
+  cpu_credits_type      = "unlimited"
+  core_count            = 2
+  threads_per_core      = 1
+
+  elastic_gpu_specifications = [
+    { type = "eg1.medium" },
+  ]
+
+  elastic_inference_accelerator = [
+    { type = "eia1.medium" },
+  ]
+
+  # ...other variables like subnet_id, security_group_ids, etc.
+}
+```
+
+**Notes**:
+
+- If you **don’t** want to set any of them, you can omit them or rely on defaults.  
+- For CPU credits, you set `enable_cpu_credits = true` for T2/T3 instances. If you’re using a different instance type that doesn’t support credits, set it to `false` or omit it.
+
+---
+
+## 4. Alternative Approaches
+
+### 4.1 Single Map or Object
+
+Rather than define many separate variables, you could define one complex object variable:
+
+```hcl
+variable "advanced_ec2_opts" {
+  type = object({
+    enable_cpu_credits = bool
+    cpu_credits_type   = string
+    core_count         = number
+    threads_per_core   = number
+    elastic_gpu_specifications = list(object({ type = string }))
+    elastic_inference_accelerator = list(object({ type = string }))
+  })
+
+  default = {
+    enable_cpu_credits = false
+    cpu_credits_type   = "unlimited"
+    core_count         = 0
+    threads_per_core   = 0
+    elastic_gpu_specifications = []
+    elastic_inference_accelerator = []
+  }
+}
+```
+
+Then your `main.tf` references them as `var.advanced_ec2_opts.enable_cpu_credits`, etc. Some find this more organized (all advanced things in one structure), others prefer separate variables.
+
+### 4.2 Expose Only the Bits You Need
+
+If your team rarely uses GPUs or inference accelerators, you could omit those variables and add them later if needed. Minimizing the number of variables keeps your module simpler.
+
+---
+
+## 5. Summary
+
+**Best Practice**:
+
+1. **Define optional variables** (with defaults) for CPU options, credit specification, GPU, inference accelerators, etc. in the **child module**.  
+2. In your **`aws_launch_template`** or `aws_instance` resource:
+   - Use **dynamic blocks** and **`for_each`** for lists, so if the user doesn’t pass anything, no block is generated.  
+   - For single properties (like CPU credits), you can either set them directly or conditionally omit the block.  
+3. In the **root module**, pass values if you need them, or rely on defaults otherwise.
+
+This approach keeps your module flexible, letting advanced users configure specialized features while leaving defaults for most use cases.
