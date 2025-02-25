@@ -1,23 +1,286 @@
-{
-  "Version": "2012-10-17",
-  "Statement": [
+###########
+
+
+
+Below is a **complete example** of how to structure a **child module** (for creating a security group) that has **default rules** and also allows **users to add custom rules** via variables. The child module creates the security group, and the root module references it, passing any extra inbound/outbound rules.
+
+---
+
+## 1. Child Module Structure
+
+Assume you have a folder `modules/sg/`:
+
+```
+modules/
+  sg/
+    main.tf
+    variables.tf
+    outputs.tf
+```
+
+### 1.1 `variables.tf`
+
+```hcl
+////////////////////////////////////////////////////////////////////////
+// modules/sg/variables.tf
+////////////////////////////////////////////////////////////////////////
+
+variable "name" {
+  type        = string
+  description = "Name of the security group"
+  default     = "my-sg"
+}
+
+variable "vpc_id" {
+  type        = string
+  description = "VPC ID where the security group will be created"
+}
+
+variable "default_ingress_rules" {
+  type = list(object({
+    description = string
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
+  description = "Default inbound rules always applied in this SG"
+  default     = []
+}
+
+variable "default_egress_rules" {
+  type = list(object({
+    description = string
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
+  description = "Default outbound rules always applied in this SG"
+  default     = []
+}
+
+variable "custom_ingress_rules" {
+  type = list(object({
+    description = string
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
+  description = "Additional inbound rules that can be specified by the user"
+  default     = []
+}
+
+variable "custom_egress_rules" {
+  type = list(object({
+    description = string
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
+  description = "Additional outbound rules that can be specified by the user"
+  default     = []
+}
+
+variable "tags" {
+  type = map(string)
+  default = {}
+  description = "Tags to apply to the security group"
+}
+```
+
+### 1.2 `main.tf`
+
+```hcl
+////////////////////////////////////////////////////////////////////////
+// modules/sg/main.tf
+////////////////////////////////////////////////////////////////////////
+
+resource "aws_security_group" "this" {
+  name        = var.name
+  description = "Security group created by child module"
+  vpc_id      = var.vpc_id
+
+  # Merge default + custom ingress rules
+  dynamic "ingress" {
+    for_each = concat(var.default_ingress_rules, var.custom_ingress_rules)
+    content {
+      description = ingress.value.description
+      from_port   = ingress.value.from_port
+      to_port     = ingress.value.to_port
+      protocol    = ingress.value.protocol
+      cidr_blocks = ingress.value.cidr_blocks
+    }
+  }
+
+  # Merge default + custom egress rules
+  dynamic "egress" {
+    for_each = concat(var.default_egress_rules, var.custom_egress_rules)
+    content {
+      description = egress.value.description
+      from_port   = egress.value.from_port
+      to_port     = egress.value.to_port
+      protocol    = egress.value.protocol
+      cidr_blocks = egress.value.cidr_blocks
+    }
+  }
+
+  tags = var.tags
+}
+```
+
+**Key Points**:
+
+- We define **two sets** of rules for inbound (`ingress`) and outbound (`egress`):
+  - **Default rules**: always present.  
+  - **Custom rules**: user-supplied from the root module.  
+- We use `concat(var.default_ingress_rules, var.custom_ingress_rules)` so both sets are combined into the final SG resource.  
+- The `dynamic` block is a Terraform construct that iterates over each rule object and creates a corresponding `ingress` or `egress` block.
+
+### 1.3 `outputs.tf`
+
+```hcl
+////////////////////////////////////////////////////////////////////////
+// modules/sg/outputs.tf
+////////////////////////////////////////////////////////////////////////
+
+output "sg_id" {
+  description = "The ID of the security group"
+  value       = aws_security_group.this.id
+}
+
+output "sg_arn" {
+  description = "The ARN of the security group"
+  value       = aws_security_group.this.arn
+}
+```
+
+---
+
+## 2. Root Module Usage
+
+In your **root** Terraform (where you do `terraform plan/apply`), you reference the SG module. You can provide:
+
+- **Default** rules (commonly stored in the module).  
+- **Custom** rules for each environment.
+
+### 2.1 Example Root Code
+
+```hcl
+module "sg" {
+  source = "./modules/sg"
+
+  name   = "my-app-sg"
+  vpc_id = var.vpc_id
+
+  # Define some default inbound rules (the child module merges them)
+  default_ingress_rules = [
     {
-      "Sid": "RCPEnforceConfusedDeputyProtection",
-      "Effect": "Deny",
-      "Principal": "*",
-      "Action": "kms:*",
-      "Resource": "*",
-      "Condition": {
-        "StringNotEqualsIfExists": {
-          "aws:SourceOrgID": "o-vvysvotv2j"
-        },
-        "Null": {
-          "aws:SourceAccount": "false"
-        },
-        "Bool": {
-          "aws:PrincipalIsAWSService": "true"
-        }
-      }
+      description = "Allow HTTP from internal"
+      from_port   = 80
+      to_port     = 80
+      protocol    = "tcp"
+      cidr_blocks = ["10.0.0.0/16"]
     }
   ]
+
+  # Define some default outbound rules
+  default_egress_rules = [
+    {
+      description = "Allow all outbound"
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  ]
+
+  # Additional custom inbound rules (user-supplied)
+  custom_ingress_rules = [
+    {
+      description = "Allow RDP from corp net"
+      from_port   = 3389
+      to_port     = 3389
+      protocol    = "tcp"
+      cidr_blocks = ["198.51.100.0/24"]
+    }
+  ]
+
+  # Additional custom outbound (optional)
+  custom_egress_rules = [
+    {
+      description = "Outbound DNS"
+      from_port   = 53
+      to_port     = 53
+      protocol    = "udp"
+      cidr_blocks = ["10.0.0.0/16"]
+    }
+  ]
+
+  tags = {
+    Owner       = "MyTeam"
+    Environment = "Dev"
+  }
 }
+
+# Now you can reference module.sg.sg_id for the created SG ID
+resource "aws_instance" "my_windows_ec2" {
+  # ...
+  vpc_security_group_ids = [module.sg.sg_id]
+}
+```
+
+**Explanation**:
+- In the root, you define any default or mandatory rules in `default_ingress_rules` / `default_egress_rules`.  
+- If the user/consumer needs extra rules, they add them to `custom_ingress_rules` / `custom_egress_rules`.  
+- The child module merges them together into one unified security group.
+
+---
+
+## 3. Advantages of This Approach
+
+1. **Simple Baseline + Extension**  
+   - The module can have built-in “default” rules for your standard “hardening” (like no wide-open ports, maybe allow SSH from a bastion, etc.).  
+   - Teams can add environment-specific or app-specific rules without editing the module code.
+
+2. **Less Code Duplication**  
+   - Everyone references the same SG module, so you maintain the default rules in one place.
+
+3. **Controlled Flexibility**  
+   - You can add validations (for example, if you want to disallow `0.0.0.0/0` for certain ports).  
+   - You can forcibly add certain “must-have” rules in the default set.
+
+---
+
+## 4. Possible Variations
+
+- **No “Default” vs “Custom”**  
+  - If your module doesn’t need default rules at all, you can just have `ingress_rules` / `egress_rules` variables.  
+- **Use a Single Variable**  
+  - Instead of separate `default_ingress_rules` and `custom_ingress_rules`, you could do:  
+    ```hcl
+    variable "ingress_rules" {
+      type = list(object({ ... }))
+    }
+    ```  
+  - Then if you want to embed your own defaults, you can `concat` them internally with something like a local variable:
+    ```hcl
+    locals {
+      merged_ingress = concat(
+        [
+          { # some default rule }
+        ],
+        var.ingress_rules
+      )
+    }
+    ```
+- **CIDR vs. Security Group**  
+  - If you also want to support referencing other SGs, you can add `security_groups` fields. Terraform allows either `cidr_blocks`, `ipv6_cidr_blocks`, or `security_groups` in an `ingress` or `egress` block.
+
+---
+
+## Conclusion
+
+By splitting **default** rules and **custom** rules, you keep **standard** inbound/outbound flows (like “allow all outbound,” “allow SSH from a bastion,” etc.) in one place and let your users or different environments add new rules in the root module. The child SG module merges them seamlessly, providing a flexible yet consistent approach to define security group rules.
