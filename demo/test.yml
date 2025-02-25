@@ -1,118 +1,118 @@
-resource "aws_launch_template" "linux_instance_launch_template" {
-  name                  = local.linux_launch_template_name
-  image_id             = var.linux_image_id
-  instance_type        = var.ec2_instance_type
-  key_name             = var.ec2_instance_key_name
-  instance_initiated_shutdown_behavior = "terminate"
-  monitoring {
-    enabled = true
-  }
-  iam_instance_profile {
-    name = aws_iam_instance_profile.ec2_instance_profile.name
-  }
-  
+Below is a **sample SCP** (Service Control Policy) that **does not** lock you into one particular AMI, yet **enforces** some best‐practice requirements for new EC2 instances. Common examples include:
 
-  block_device_mappings {
-    device_name = "/dev/xvda"    
-    ebs {
-      volume_size           = 8
-      volume_type           = "gp3"
-      delete_on_termination = true
-      encrypted             = true
-      kms_key_id            = var.ebs_kms_key_arn  
-    }
-  }
-  tag_specifications {
-    resource_type = "instance"
-    tags = merge(
+1. **Forcing IMDSv2** (metadata options = `httpTokens = required`).  
+2. **Requiring encryption for all EBS volumes**.  
+3. **Ensuring an IAM instance profile is always attached** (for example, to manage instances with SSM).  
+4. **Optionally requiring certain tags**.
+
+You can adapt or expand on these checks depending on your organization’s needs. This approach **doesn’t** restrict you to a single AMI, so you (or other teams) can still use different images (including BYOL or other custom AMIs) as long as they meet the guardrails.
+
+---
+
+## 1. Example SCP JSON
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
     {
-      Name = "${var.environment_name}-template-${var.team}"
-    },
-    local.default_tags
-    )
-  }
-
-  tag_specifications {
-    resource_type = "volume"
-    tags = merge(
-      {
-        Name = "${var.environment_name}-template-volume-${var.team}"
-      },
-      local.default_tags
-    )
-  }
-  metadata_options {
-    http_tokens               = "required"
-    http_endpoint             = "enabled"
-    http_put_response_hop_limit = 1
-  }
-}
-
-resource "aws_instance" "linux_ec2" {
-  ami                         = aws_launch_template.linux_instance_launch_template.image_id
-  instance_type               = aws_launch_template.linux_instance_launch_template.instance_type
-  subnet_id                   = var.vpc_ec2_subnet1
-  availability_zone           = var.availability_zone
-  key_name                    = aws_launch_template.linux_instance_launch_template.key_name
-  iam_instance_profile        = aws_launch_template.linux_instance_launch_template.iam_instance_profile[0].name
-  #disable_api_termination     =  true
-  launch_template {
-    id      = aws_launch_template.linux_instance_launch_template.id
-    version = aws_launch_template.linux_instance_launch_template.latest_version
-  }
-  lifecycle {
-    ignore_changes = [
-      ebs_optimized, hibernation, security_groups, monitoring, root_block_device, tags_all, root_block_device, launch_template,
-      credit_specification, network_interface, iam_instance_profile
-      ]
-    # prevent_destroy = true
-  }
-  ebs_optimized = true
-  security_groups = [
-    aws_security_group.web_app_sg.id
-  ]
-  
-  tags = merge(
-    {
-      Name = "${var.stack_name}-linux-cs-instance-${var.team}"
-      DomainJoin = "true"
-    },
-    local.default_tags
-  )
-
-}
-
-resource "aws_ssm_document" "adjoin_domain" {
- name          = local.linux_adjoin_name
- document_type = "Command"
- tags          = local.default_tags
- content = jsonencode(
-  {
-    "schemaVersion" = "2.2"
-    "description"   = "ssm document for Automatic Domain Join Configuration created by Terraform"
-    "mainSteps" = [
-      {
-        "action" = "aws:domainJoin",
-        "name"   = "domainJoin",
-        "inputs" = {
-          "directoryId": var.ad_directory_id,
-          "directoryName" : var.ad_directory_name
-       "dnsIpAddresses" : [
-                     var.dns_ip_addresses[0],
-                     var.dns_ip_addresses[1]
-                  ]
-          }
+      "Sid": "EnforceEC2HardenedBestPractices",
+      "Effect": "Deny",
+      "Action": "ec2:RunInstances",
+      "Resource": "*",
+      "Condition": {
+        "StringNotEqualsIfExists": {
+          // 1) Force IMDSv2: block if the request is not "ec2:MetadataHttpTokens"=required
+          "ec2:MetadataHttpTokens": "required",
+          
+          // 2) Require an instance profile (SSM or otherwise). Adjust the ARN or
+          //    use a wildcard if you only want to ensure *some* profile is present:
+          //    "ec2:InstanceProfile": "arn:aws:iam::*:instance-profile/*"
+          // If you want to enforce a *specific* profile, specify its exact ARN(s).
+          "ec2:InstanceProfile": [
+            "arn:aws:iam::*:instance-profile/YourRequiredProfileName"
+          ]
+        },
+        "BoolNotEqualsIfExists": {
+          // 3) Enforce EBS encryption
+          // This ensures that any new instance's EBS volumes must be encrypted.
+          "ec2:Encrypted": "true"
         }
-      ]
+      }
     }
-  )
+  ]
 }
+```
 
-resource "aws_ssm_association" "ad_join_domain_association" {
-  depends_on = [ aws_instance.generic ]
-  name = aws_ssm_document.adjoin_domain.name
-  targets {
-    key    = "InstanceIds"
-    values = [ aws_instance.linux_ec2.id ]
-  }
-}
+### Explanation
+
+1. **`ec2:MetadataHttpTokens = "required"`**  
+   - Forces the use of **IMDSv2** for instance metadata, which improves security by disallowing IMDSv1 requests.
+
+2. **`ec2:InstanceProfile`**  
+   - Ensures that **some** IAM instance profile is attached. In this example, it specifically requires the ARN to match `arn:aws:iam::*:instance-profile/YourRequiredProfileName`.  
+   - If you just want to ensure **any** instance profile is present, you can do something like:
+     ```json
+     "StringNotEqualsIfExists": {
+       "ec2:InstanceProfile": ""
+     }
+     ```
+     but that’s trickier to handle because you want to “deny if profile is empty.” A more direct approach is to **allow** if the profile matches certain patterns or is non-empty.
+
+3. **`ec2:Encrypted = "true"`**  
+   - Enforces that all new EBS volumes attached to the instance must be encrypted.  
+   - This includes the root volume. It does **not** specifically control ephemeral (instance store) volumes.  
+   - If your org requires ephemeral store volumes to be avoided or your OS to handle encryption differently, that’s a separate discussion.
+
+4. **No Single AMI Restriction**  
+   - Because we haven’t used any condition referencing `"ec2:ImageId"`, you’re not forced to a single AMI. You can use a variety of images, including BYOL or partner AMIs.
+
+5. **Mandatory Tags (Optional)**  
+   - If you want to require certain tags, you can add conditions like:
+     ```json
+     "ForAnyValue:StringEquals": {
+       "aws:TagKeys": [ "Owner", "Environment" ]
+     }
+     ```
+     or
+     ```json
+     "StringNotEqualsIfExists": {
+       "aws:RequestTag/CostCenter": "YOUR_VALUE"
+     }
+     ```
+   - This ensures a particular tag is set, but the exact syntax depends on your tagging strategy.
+
+---
+
+## 2. How to Attach the SCP
+
+1. **In AWS Organizations** console (or CLI), create a new SCP with the JSON above.  
+2. **Attach** it to the organizational unit (OU) or account where you want to enforce these rules.  
+3. **Test** in a sandbox or dev account to confirm the deny logic works as intended:
+   - Attempt to launch an instance **without** an instance profile → should be denied.  
+   - Attempt to launch an instance with IMDSv1 (`ec2:MetadataHttpTokens` not set to `required`) → denied.  
+   - Attempt to launch an instance with unencrypted EBS volumes → denied.
+
+---
+
+## 3. Limitations
+
+1. **Cannot Enforce SSM Docs or User Data**  
+   - SCPs can’t directly enforce that a particular user data script is used or that certain SSM documents are run. AWS does not expose those fields as condition keys.  
+2. **Optional vs. Strict**  
+   - If you only want to *warn* or *detect* issues (instead of blocking them), you might pair an **AWS Config rule** with a remediation or detection approach.  
+3. **Scope**  
+   - An SCP applies **org-wide** (or at least OU-level). Make sure your pipeline or authorized admins use the required settings, or they’ll get blocked too.
+
+---
+
+## 4. Summary
+
+- **No Hardcoded AMI**: This policy does **not** restrict images, so teams can bring their own OS or BYOL.  
+- **Forces Key Security Postures**:  
+  - IMDSv2 (metadata v2)  
+  - EBS encryption  
+  - An instance profile for SSM or other monitoring tools.  
+- **Additional Checks**: You could also require specific tags, specific instance types, or expanded encryption coverage.  
+
+With this kind of SCP, you give your teams **flexibility** (any AMI) while still enforcing the critical baseline: secure metadata, encryption, and an IAM profile for management.
