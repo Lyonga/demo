@@ -1,1 +1,60 @@
-Start-Process msiexec -ArgumentList \"/i\", \"C:\\Scripts\\RAPID7_X86_64.MSI\", \"/l*v\", \"C:\\Scripts\\debug.log\", \"/quiet\", \"/qn\" -Wait -NoNewWindow
+<powershell>
+[Environment]::SetEnvironmentVariable("BUCKET_NAME", "ngl-ec2-terraform-backend-workloaddev", "Machine")
+[Environment]::SetEnvironmentVariable("CROWDSTRIKE_CID", "90A3F76CCAB1486B926DAB2CA88CF712-29", "Machine")
+[Environment]::SetEnvironmentVariable("DUO_IKEY", "DIGAQFXPG4Q2GQJJINA2", "Machine")
+[Environment]::SetEnvironmentVariable("DUO_SKEY", "K7FIgmjChMmBa6G6IJrJvDGc4e6wNZNf9aKGxCPr", "Machine")
+[Environment]::SetEnvironmentVariable("DUO_API_HOST", "api-550c2cbe.duosecurity.com", "Machine")
+
+# 2. Inject the external script contents
+<powershell>
+Write-Host "Starting Windows user data script..."
+
+# 1. Install AWS Tools for PowerShell
+Write-Host "Installing AWS Tools for PowerShell..."
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$False
+Install-Module AWS.Tools.S3 -Force -Confirm:$False
+
+# Pull environment variables (injected by Terraform) for bucket and credentials
+$BucketName     = $env:BUCKET_NAME
+$CrowdstrikeCID = $env:CROWDSTRIKE_CID
+$DuoIKEY        = $env:DUO_IKEY
+$DuoSKEY        = $env:DUO_SKEY
+$DuoApiHost     = $env:DUO_API_HOST
+
+# Create a scripts folder
+New-Item -ItemType Directory -Path "C:\Scripts" -Force | Out-Null
+
+#######################################
+# 1. Install CrowdStrike
+#######################################
+Write-Host "Downloading CrowdStrike from S3..."
+Read-S3Object -BucketName $BucketName -Key "agents\CROWDSTRIKE.EXE" -File "C:\Scripts\CROWDSTRIKE.EXE"
+
+Write-Host "Installing CrowdStrike..."
+Start-Process "C:\Scripts\CROWDSTRIKE.EXE" -ArgumentList "/install","/quiet","/norestart","CID=$CrowdstrikeCID" -Wait
+Write-Host "CrowdStrike installation completed."
+
+#######################################
+# 2. Install Rapid7
+#######################################
+Write-Host "Downloading Rapid7 from S3..."
+Read-S3Object -BucketName $BucketName -Key "agents\RAPID7_X86_64.MSI" -File "C:\Scripts\RAPID7_X86_64.MSI"
+
+Write-Host "Installing Rapid7..."
+Start-Process msiexec.exe -ArgumentList "/i","C:\Scripts\RAPID7_X86_64.MSI","/qn" -Wait
+Write-Host "Rapid7 installation completed."
+
+#######################################
+# 3. Install Duo
+#######################################
+Write-Host "Downloading Duo from S3..."
+Read-S3Object -BucketName $BucketName -Key "agents\DUOWINDOWSLOGON64.MSI" -File "C:\Scripts\DUOWINDOWSLOGON64.MSI"
+
+Write-Host "Installing Duo..."
+$duoArgs = "/i C:\Scripts\DUOWINDOWSLOGON64.MSI IKEY=$DuoIKEY SKEY=$DuoSKEY HOST=$DuoApiHost AUTOPUSH='#0' FAILOPEN='#0' SMARTCARD='#0' RDPONLY='#0' USERNAMEFORMAT='0' /passive"
+Start-Process msiexec.exe -ArgumentList $duoArgs -Wait
+Write-Host "Duo installation completed."
+
+Write-Host "All tools installed via Windows user data script."
+</powershell>
+</powershell>
