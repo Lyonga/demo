@@ -84,4 +84,194 @@
       }
    ]
  }
- 
+
+
+ ##############
+ This **Service Control Policy (SCP)** is designed to enforce security best practices in AWS, particularly around EC2 instances, IAM roles, and EBS volumes. Let’s break it down **block by block**, explaining **why each rule is important**.
+
+---
+
+## **1. Enforce EC2 Instance Metadata Service Version 2 (IMDSv2)**
+```json
+{
+   "Sid": "EnforceEC2IMDSv2",
+   "Effect":"Deny",
+   "Action":"ec2:RunInstances",
+   "Resource":"arn:aws:ec2:*:*:instance/*",
+   "Condition":{
+      "StringNotEquals":{
+         "ec2:MetadataHttpTokens":"required"
+      }
+   }
+}
+```
+### **Purpose:**
+- This prevents the launch of EC2 instances unless they **require IMDSv2** for metadata access.
+
+### **Why it’s Important:**
+- IMDSv1 is vulnerable to **server-side request forgery (SSRF)** attacks.
+- IMDSv2 provides additional security, requiring a session token to prevent unauthorized access to instance metadata.
+  
+---
+
+## **2. Restrict IMDS Response Hop Limit to 3**
+```json
+{
+   "Effect":"Deny",
+   "Action":"ec2:RunInstances",
+   "Resource":"arn:aws:ec2:*:*:instance/*",
+   "Condition":{
+      "NumericGreaterThan":{
+         "ec2:MetadataHttpPutResponseHopLimit":"3"
+      }
+   }
+}
+```
+### **Purpose:**
+- Prevents launching EC2 instances with an **Instance Metadata Service (IMDS) Hop Limit** greater than 3.
+
+### **Why it’s Important:**
+- This mitigates **metadata theft** by limiting how many network hops can access instance metadata.
+- Attackers who gain access through SSRF won’t be able to retrieve metadata beyond the local network.
+
+---
+
+## **3. Enforce Secure IAM Role Delivery to EC2**
+```json
+{
+   "Effect":"Deny",
+   "Action":"*",
+   "Resource":"*",
+   "Condition":{
+      "NumericLessThan":{
+         "ec2:RoleDelivery":"2.0"
+      }
+   }
+}
+```
+### **Purpose:**
+- Ensures EC2 instances use secure methods to attach IAM roles.
+
+### **Why it’s Important:**
+- Prevents using insecure IAM role assignment mechanisms that could expose credentials.
+- Ensures EC2 instance role credentials are securely retrieved.
+
+---
+
+## **4. Prevent Modifications to EC2 Instance Metadata Options**
+```json
+{
+   "Effect":"Deny",
+   "Action":"ec2:ModifyInstanceMetadataOptions",
+   "Resource":"*"
+}
+```
+### **Purpose:**
+- Blocks any modification to EC2 instance metadata options **after instance launch**.
+
+### **Why it’s Important:**
+- Prevents attackers from downgrading instances to **IMDSv1**, reintroducing security risks.
+- Ensures **IMDSv2 remains enforced** across all instances.
+
+---
+
+## **5. Prevent the Creation of Unencrypted EBS Volumes**
+```json
+{
+   "Sid": "PreventCreateUnencryptedVolume",
+   "Effect": "Deny",
+   "Action": "ec2:CreateVolume",
+   "Resource": "*",
+   "Condition": {
+     "Bool": {
+       "ec2:Encrypted": "false"
+     }
+   }
+}
+```
+### **Purpose:**
+- Prevents users from creating **unencrypted EBS volumes**.
+
+### **Why it’s Important:**
+- Unencrypted volumes expose sensitive data **if the volume is copied or snapshot is taken**.
+- Enforcing encryption ensures compliance with **security best practices**.
+
+---
+
+## **6. Prevent Attaching or Running Instances with Unencrypted Volumes**
+```json
+{
+   "Sid": "PreventEc2MountUnencryptedVolume",
+   "Effect": "Deny",
+   "Action": "ec2:RunInstances",
+   "Resource": "arn:aws:ec2:*:*:volume/*",
+   "Condition": {
+     "Bool": {
+       "ec2:Encrypted": "false"
+      }
+    }
+}
+```
+### **Purpose:**
+- Prevents launching instances with **unencrypted volumes**.
+
+### **Why it’s Important:**
+- Ensures data at rest remains **encrypted**, reducing risk in case of volume theft or data exfiltration.
+
+---
+
+## **7. Deny Disabling EBS Encryption by Default**
+```json
+{
+   "Sid": "DenyDisableEbsEncryptionByDefault",    
+   "Effect": "Deny", 
+   "Action": [ 
+         "ec2:DisableEbsEncryptionByDefault" 
+   ], 
+   "Resource": "*" 
+}
+```
+### **Purpose:**
+- Prevents disabling **EBS encryption by default** at the account level.
+
+### **Why it’s Important:**
+- Ensures **all EBS volumes are encrypted by default**, without relying on manual configuration.
+- Enforces organization-wide security compliance.
+
+---
+
+## **8. Deny Creation and Attachment of Non-GP3 Volumes**
+```json
+{
+   "Sid": "DenyCreationAndAttachmentOfNonGP3Volumes",
+   "Effect": "Deny",
+   "Action": [
+   "ec2:AttachVolume",
+   "ec2:CreateVolume",
+   "ec2:RunInstances"
+   ],
+   "Resource": "arn:aws:ec2:*:*:volume/*",
+   "Condition": {
+   "StringNotEquals": {
+      "ec2:VolumeType": "gp3"
+   }
+   }
+}
+```
+### **Purpose:**
+- Ensures that only **gp3** EBS volumes can be created or attached.
+
+### **Why it’s Important:**
+- **GP3 is more cost-effective** and provides better performance than GP2.
+- Avoids excessive spending on **expensive volume types** like io1, io2, st1, and sc1.
+
+---
+
+## **Final Thoughts**
+This **SCP enforces a strong security posture** by:
+✅ **Mandating IMDSv2** to protect against metadata attacks.  
+✅ **Ensuring IAM role security** to prevent credential leaks.  
+✅ **Requiring encryption** for all EBS volumes.  
+✅ **Standardizing volume types** to optimize cost and performance.  
+
+Would you like recommendations on **additional security controls** for your AWS environment? 🚀
