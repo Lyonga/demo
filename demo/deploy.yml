@@ -1,41 +1,352 @@
-name: Push and PR triggered terraform
+###################
 
-on:
-  push:
-    branches:
-      - feature/main
-      - feature/qa
-      - main
-  pull_request:
-    branches: "**"
 
-permissions:
-  id-token: write
-  contents: read
+Use tag key "project_name" is the corresponding value is "Traverse", check for
+for "service_name" where:
+1. route report to MAPs and ITCS email
+service_name: dynatrace, onboarding
+project_name: traverse
+project: traverse
 
-jobs:
-  dev-apply-terraform:
-# This condition allows the dev job to run if either the push trigger target or the pull request target is feature/main
-    if: github.ref == 'refs/heads/feature/main' || github.base_ref == 'feature/main'
-    uses: ./.github/workflows/terraform-pipeline.yml
-    secrets: inherit
-    with:
-      environment: "dev"
-# For push triggers we run an apply and for pull request triggers we run a plan
-      command: ${{ github.event_name == 'pull_request' && 'plan' || 'apply' }}
+2.route the the report to MAP's email if 
+service_name: dynatrace, onboarding
+project_name: traverse
+project: traverse
 
-  qa-run-terraform:
-    if: github.ref == 'refs/heads/feature/qa' || github.base_ref == 'feature/qa'
-    uses: ./.github/workflows/terraform-pipeline.yml
-    secrets: inherit
-    with:
-      environment: "qa"
-      command:  ${{ github.event_name == 'pull_request' && 'plan' || 'apply' }}
+3.route the the report to PDS/DDS email if 
+Owner: digitaldistributionsolutions@nglic.com
+Service-Name: data-mapper/modern-data-architecture/valuation/nb-reporting-service
+service-name: cdc-event-processor
+Project: integration-layer/modern-data-architecture
+Team: DST/actuary team
 
-  prod-run-terraform:
-    if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
-    uses: ./.github/workflows/terraform-pipeline.yml
-    secrets: inherit
-    with:
-      environment: "prod"
-      command: ${{ github.event_name == 'pull_request' && 'plan' || 'apply' }}
+4.route the the report to SECURTY email if: 
+ITInfrastructureSystems@nglic.com
+service-name: security/securityhub
+Owner: security@nglic.com
+Name: InfoSec
+project: securityhub
+
+
+5.route the the report to Appcore email if 
+Project: core/appcore
+service_name: Appcore
+Service_Name: appqore-transform-disco
+
+
+
+service_name is dynatrace, onboarding, then, route to EIS email
+service_name is quicksight, then, route to PDS email 
+service_name is core, Appcore,  then, route to Appcore Email
+service_name is core, Appcore,  then, route to Security Email
+
+
+
+
+RTB: MaPS, DDS, PDS, EIS, ITCS, Security, AppQore
+TRAVERSE: Equisoft Integrations, NGL Equisoft, Moon Rakers, Eloquence, DARK STAR
+
+
+Below is **one** recommended approach for dynamically routing cost reports to different teams based on **tag keys/values**—with an emphasis on **scalability** and **ease of maintenance**. First, we’ll outline the logic, then show how to store your “routing rules” in an external configuration (like a JSON file, DynamoDB, or Parameter Store) so you can update them without rewriting code.
+
+---
+
+## 1. Overview of the Problem
+
+You have multiple **keys** (`service_name`, `project_name`, `project`, `Owner`, etc.) and **values** (e.g. `dynatrace`, `onboarding`, `securityhub`, etc.), and **if** certain tags appear in the resource usage, you want to **send** the cost report to specific **team emails**.
+
+### Example Requirements
+
+1. **MAPs & ITCS** if:
+   - `service_name: dynatrace, onboarding`
+   - `project_name: traverse`
+   - `project: traverse`
+2. **MAPs** alone if certain conditions, etc.
+3. **PDS/DDS** if `Owner = digitaldistributionsolutions@nglic.com` or certain other tags.
+4. **SECURITY** if `Owner = security@nglic.com` or `project=securityhub`.
+5. **Appcore** if `Project=core/appcore` or `Service_Name=appqore-transform-disco`, etc.
+
+---
+
+## 2. High-Level Steps
+
+1. **Gather Cost Data**  
+   - Use `get_cost_and_usage` with grouping by `[ACCOUNT, SERVICE, TAGKEY]`, etc., or rely on daily/monthly cost usage data.  
+   - Reorganize the data into a structure keyed by resource or at least by (account, service) plus any relevant tags.
+
+2. **Identify Tags**  
+   - For each resource (or usage group), parse out tags. For example:  
+     ```python
+     resource_tags = {
+       "service_name": "dynatrace",
+       "project": "traverse",
+       "Owner": "digitaldistributionsolutions@nglic.com",
+       ...
+     }
+     ```
+3. **Check Which Routing Rule Applies**  
+   - For each resource’s tags, see if they match a routing condition. If so, **accumulate** that cost into the correct email’s “bucket.” 
+   - Alternatively, if you just have a single cost report, you might do a **summary**: “Everything that matches rule #1 goes in MAPs & ITCS report,” etc.
+
+4. **Generate Per-Team Email**  
+   - Once you’ve grouped by route destination (e.g. “MAPs & ITCS,” “SECURITY,” “Appcore,” etc.), build separate cost tables or separate sections in the same HTML.  
+   - Or create distinct emails, one for each team, sending only the resources that match their route.
+
+5. **Send Emails**  
+   - For each route, call SES (or your chosen mailer) with the cost breakdown.
+
+---
+
+## 3. Storing the Routing Rules Dynamically
+
+You don’t want to hardcode a giant `if/elif` chain in the Lambda. Instead, store the rules in some structured format. Some possibilities:
+
+1. **JSON File** in your repository (or S3)
+2. **DynamoDB** table
+3. **AWS Systems Manager (SSM) Parameter Store** with a JSON value
+4. **AWS AppConfig**  
+
+### Example JSON Structure
+
+```jsonc
+{
+  "routes": [
+    {
+      "name": "MAPs and ITCS",
+      "sendTo": ["maps@example.com", "itcs@example.com"],
+      "conditions": [
+        {
+          "tagKey": "service_name",
+          "tagValues": ["dynatrace", "onboarding"]
+        },
+        {
+          "tagKey": "project_name",
+          "tagValues": ["traverse"]
+        },
+        {
+          "tagKey": "project",
+          "tagValues": ["traverse"]
+        }
+      ]
+    },
+    {
+      "name": "MAPs Only",
+      "sendTo": ["maps@example.com"],
+      "conditions": [
+        {
+          "tagKey": "service_name",
+          "tagValues": ["dynatrace", "onboarding"]
+        },
+        {
+          "tagKey": "project_name",
+          "tagValues": ["traverse"]
+        },
+        {
+          "tagKey": "project",
+          "tagValues": ["traverse"]
+        }
+      ]
+    },
+    {
+      "name": "PDS/DDS",
+      "sendTo": ["digitaldistributionsolutions@nglic.com"],
+      "conditions": [
+        {
+          "tagKey": "Owner",
+          "tagValues": ["digitaldistributionsolutions@nglic.com"]
+        },
+        {
+          "tagKey": "Service-Name",
+          "tagValues": [
+            "data-mapper",
+            "modern-data-architecture",
+            "valuation",
+            "nb-reporting-service",
+            "cdc-event-processor"
+          ]
+        },
+        {
+          "tagKey": "Project",
+          "tagValues": ["integration-layer", "modern-data-architecture"]
+        },
+        {
+          "tagKey": "Team",
+          "tagValues": ["DST", "actuary team"]
+        }
+      ]
+    },
+    {
+      "name": "SECURITY",
+      "sendTo": ["security@nglic.com", "itinfrastructuresystems@nglic.com"],
+      "conditions": [
+        {
+          "tagKey": "service-name",
+          "tagValues": ["security", "securityhub"]
+        },
+        {
+          "tagKey": "Owner",
+          "tagValues": ["security@nglic.com"]
+        },
+        {
+          "tagKey": "Name",
+          "tagValues": ["InfoSec"]
+        },
+        {
+          "tagKey": "project",
+          "tagValues": ["securityhub"]
+        }
+      ]
+    },
+    {
+      "name": "Appcore",
+      "sendTo": ["appcore@example.com"],
+      "conditions": [
+        {
+          "tagKey": "Project",
+          "tagValues": ["core", "appcore"]
+        },
+        {
+          "tagKey": "service_name",
+          "tagValues": ["Appcore", "appqore-transform-disco"]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Interpretation**:
+- Each `route` object has a **`name`** (for reference), a list of `sendTo` email addresses, and an array of `conditions`.
+- Each condition has a `tagKey` and a list of allowed `tagValues`.  
+- If **all** conditions in a route must match, you do **AND** logic. If you want an OR logic among them, define carefully how you parse it.
+
+You can store this JSON in **S3** or **DynamoDB** or **Parameter Store**. Then your Lambda downloads or fetches it at runtime or during initialization.
+
+---
+
+## 4. Implementation Outline in Code
+
+Below is **pseudo-code** for the crucial part: the logic that **routes** each resource’s cost to the correct emails.
+
+```python
+def load_routing_rules():
+    # e.g. from a JSON in S3 or from Parameter Store
+    rules = {
+      # same structure as above
+    }
+    return rules
+
+def match_tag_condition(resource_tags, condition):
+    # condition: { "tagKey": "service_name", "tagValues": ["dynatrace", "onboarding"] }
+    # resource_tags: e.g. { "service_name": "dynatrace", "project_name": "traverse" }
+    key = condition["tagKey"]
+    if key not in resource_tags:
+        return False
+    if resource_tags[key] in condition["tagValues"]:
+        return True
+    return False
+
+def resource_matches_route(resource_tags, route):
+    # route["conditions"] is a list of conditions
+    # Decide if you want "all must match" (AND) or "any match" (OR).
+    # Let's do an AND approach:
+    for cond in route["conditions"]:
+        if not match_tag_condition(resource_tags, cond):
+            return False
+    return True
+
+def route_resource(resource_tags, all_routes):
+    # Returns a list of route names or route objects that match
+    matched_routes = []
+    for route in all_routes:
+        if resource_matches_route(resource_tags, route):
+            matched_routes.append(route)
+    return matched_routes
+
+def main():
+    all_routes = load_routing_rules()  # e.g. a list of route dicts
+    cost_data = gather_cost_data()  # your cost explorer call
+    route_buckets = {}  # e.g. { "MAPs and ITCS": {"cost":..., "resources":[...]}, ... }
+
+    for route in all_routes:
+        route_buckets[route["name"]] = {
+            "sendTo": route["sendTo"],
+            "resources": [],
+            "totalCost": 0.0
+        }
+
+    # For each resource
+    for resource in cost_data["Resources"]:
+        resource_tags = resource["tags"]
+        cost = resource["cost"]
+
+        # see which routes it belongs to
+        matched_routes = route_resource(resource_tags, all_routes)
+        for r in matched_routes:
+            r_name = r["name"]
+            route_buckets[r_name]["resources"].append(resource)
+            route_buckets[r_name]["totalCost"] += cost
+
+    # Then for each routeBucket in route_buckets, build an HTML table & send email
+    for r_name, info in route_buckets.items():
+        if info["totalCost"] > 0:
+            email_html = build_report_html(info["resources"])
+            send_email(info["sendTo"], email_html)
+```
+
+### Explanation
+- **`load_routing_rules()`** loads the JSON from your chosen storage.  
+- **`resource_matches_route()`** checks whether the resource’s tags satisfy **all** the conditions in that route.  
+- The code then accumulates cost data into the matching route “buckets.”  
+- At the end, we create a separate email for each route.
+
+You can adapt the logic if you want “OR” logic inside the conditions, or if you want to handle partial matches differently.
+
+---
+
+## 5. Where to Store the Config?
+
+1. **Hardcoded in Code**  
+   - Easiest to write, but you must redeploy the Lambda every time you change rules. Not recommended for frequent changes.
+
+2. **Parameter Store** (AWS Systems Manager)  
+   - Store the entire JSON structure in one **SecureString** or **String** parameter.  
+   - Your Lambda loads it at startup with `ssm.get_parameter()`.
+   - Updating rules is as simple as editing the parameter—no code changes.
+
+3. **S3**  
+   - Keep a `routing_rules.json` in an S3 bucket.  
+   - The Lambda reads it via `s3.get_object(...)`.  
+   - If you update the JSON file in S3, the Lambda picks up changes on the next run.
+
+4. **DynamoDB**  
+   - Each route is an item in a “Routes” table, or you store the entire JSON in a single row.  
+   - Similar approach but possibly overkill unless you have hundreds of rules or advanced queries.
+
+Any of these let you modify the routing logic without rewriting the Lambda’s “if/else” statements.
+
+---
+
+## 6. Why This is Scalable / Maintainable
+
+- You have **multiple tags** that can appear on resources.  
+- Over time, new tags or new routes can be added simply by editing your config JSON or DDB table.  
+- As the “Traverse” program’s resources shift to “Reactor,” you just change their tags or change the route conditions from “Traverse” → “Reactor.”  
+- No big code changes or re‐deploys are necessary. The Lambda is “tag + route” aware.
+
+---
+
+## 7. Putting It All Together
+
+1. **Adopt multi-level tags** or keep the tags you have (`service_name`, `project_name`, `Owner`, etc.).  
+2. Store your routing logic in a dynamic config (JSON or DDB) that says: “If `tagKey = 'service_name'` in `[ 'dynatrace','onboarding' ]` **AND** `tagKey = 'project'` in `[ 'traverse' ]` => route to MAPs & ITCS.”  
+3. In your cost-report Lambda: 
+   - **Load** that config.  
+   - **Parse** each resource’s tags.  
+   - **Check** if it matches each route’s conditions.  
+   - **Accumulate** cost data for that route.  
+   - **Send** an email report to each route’s recipients.  
+4. **Update** the tags or routing config as teams are retired or renamed.
+
+That’s it! This approach keeps your logic centralized in an external config or data store. As your company’s program structure changes, you can easily retarget cost data—no big code rewrites.
+
