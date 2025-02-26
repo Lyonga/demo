@@ -1,132 +1,87 @@
-  # aws_instance.generic must be replaced
--/+ resource "aws_instance" "generic" {
-      ~ arn                                  = "arn:aws:ec2:us-east-2:384352530920:instance/i-059e10434a6992296" -> (known after apply)
-      ~ associate_public_ip_address          = false -> (known after apply)
-      ~ cpu_core_count                       = 1 -> (known after apply)
-      ~ cpu_threads_per_core                 = 1 -> (known after apply)
-      ~ disable_api_stop                     = false -> (known after apply)
-      ~ disable_api_termination              = false -> (known after apply)
-      + enable_primary_ipv6                  = (known after apply)
-      - hibernation                          = false -> null
-      + host_id                              = (known after apply)
-      + host_resource_group_arn              = (known after apply)
-      ~ id                                   = "i-059e10434a6992296" -> (known after apply)
-      ~ instance_initiated_shutdown_behavior = "terminate" -> (known after apply)
-      + instance_lifecycle                   = (known after apply)
-      ~ instance_state                       = "stopped" -> (known after apply)
-      ~ ipv6_address_count                   = 0 -> (known after apply)
-      ~ ipv6_addresses                       = [] -> (known after apply)
-      ~ monitoring                           = false -> (known after apply)
-      + outpost_arn                          = (known after apply)
-      + password_data                        = (known after apply)
-      + placement_group                      = (known after apply)
-      ~ placement_partition_number           = 0 -> (known after apply)
-      ~ primary_network_interface_id         = "eni-09049b6de86bffd82" -> (known after apply)
-      ~ private_dns                          = "ip-10-53-56-28.us-east-2.compute.internal" -> (known after apply)
-      ~ private_ip                           = "10.53.56.28" -> (known after apply)
-      + public_dns                           = (known after apply)
-      + public_ip                            = (known after apply)
-      ~ secondary_private_ips                = [] -> (known after apply)
-      ~ security_groups                      = [ # forces replacement
-          + "sg-0807118af648b3946",
-        ]
-      + spot_instance_request_id             = (known after apply)
-      ~ tags                                 = {
-            "DomainJoin"       = "true"
-          - "Environment"      = "dev" -> null
-            "Name"             = "ec2-resiliency-windows-instance-EIS"
-          - "Project"          = "infrastructure" -> null
-          - "Service-Name"     = "infrastructure-tools" -> null
-            "created_by"       = "terraform"
-          + "environment_name" = "dev"
-          + "product_name"     = "onboarding"
-          + "project_name"     = "infrastructure"
-          + "service_name"     = "infrastructure-tools"
-        }
-      ~ tags_all                             = {
-          - "Environment"      = "dev" -> null
-          - "Project"          = "infrastructure" -> null
-          - "Service-Name"     = "infrastructure-tools" -> null
-          + "product_name"     = "onboarding"
-          + "project_name"     = "infrastructure"
-          + "service_name"     = "infrastructure-tools"
-            # (4 unchanged elements hidden)
-        }
-      ~ tenancy                              = "default" -> (known after apply)
-      + user_data                            = (known after apply)
-      + user_data_base64                     = (known after apply)
-      ~ vpc_security_group_ids               = [
-          - "sg-0807118af648b3946",
-        ] -> (known after apply)
-        # (10 unchanged attributes hidden)
-
-      - capacity_reservation_specification {
-          - capacity_reservation_preference = "open" -> null
-        }
-
-      - cpu_options {
-          - core_count       = 1 -> null
-          - threads_per_core = 1 -> null
-            # (1 unchanged attribute hidden)
-        }
-
-      - credit_specification {
-          - cpu_credits = "standard" -> null
-        }
-
-      - enclave_options {
-          - enabled = false -> null
-        }
-
-      ~ launch_template {
-            id      = "lt-087c562735a619791"
-          ~ name    = "ec2-resiliency-ec2-launch-template" -> (known after apply)
-          ~ version = "8" # forces replacement -> (known after apply) # forces replacement
-        }
-
-      - maintenance_options {
-          - auto_recovery = "default" -> null
-        }
-
-      - metadata_options {
-          - http_endpoint               = "enabled" -> null
-          - http_protocol_ipv6          = "disabled" -> null
-          - http_put_response_hop_limit = 1 -> null
-          - http_tokens                 = "required" -> null
-          - instance_metadata_tags      = "disabled" -> null
-        }
-
-      - private_dns_name_options {
-          - enable_resource_name_dns_a_record    = false -> null
-          - enable_resource_name_dns_aaaa_record = false -> null
-          - hostname_type                        = "ip-name" -> null
-        }
-
-      - root_block_device {
-          - delete_on_termination = true -> null
-          - device_name           = "/dev/sda1" -> null
-          - encrypted             = true -> null
-          - iops                  = 3000 -> null
-          - kms_key_id            = "arn:aws:kms:us-east-2:384352530920:key/48e020cc-9b1b-4cea-9306-e03d9e39e991" -> null
-          - tags                  = {
-              - "Environment"      = "dev"
-              - "Name"             = "dev-template-volume-EIS"
-              - "Project"          = "infrastructure"
-              - "Service-Name"     = "infrastructure-tools"
-              - "created_by"       = "terraform"
-              - "environment_name" = "dev"
-            } -> null
-          - tags_all              = {
-              - "Environment"      = "dev"
-              - "Name"             = "dev-template-volume-EIS"
-              - "Project"          = "infrastructure"
-              - "Service-Name"     = "infrastructure-tools"
-              - "created_by"       = "terraform"
-              - "environment_name" = "dev"
-            } -> null
-          - throughput            = 125 -> null
-          - volume_id             = "vol-0926108ccdec55b0e" -> null
-          - volume_size           = 75 -> null
-          - volume_type           = "gp3" -> null
-        }
-    }
+{
+   "Version": "2012-10-17",
+   "Statement": [
+      {
+         "Sid": "EnforceEC2IMDSv2",
+         "Effect":"Deny",
+         "Action":"ec2:RunInstances",
+         "Resource":"arn:aws:ec2:*:*:instance/*",
+         "Condition":{
+            "StringNotEquals":{
+               "ec2:MetadataHttpTokens":"required"   ##############
+            }
+         }
+      },
+      {
+         "Effect":"Deny",
+         "Action":"ec2:RunInstances",
+         "Resource":"arn:aws:ec2:*:*:instance/*",
+         "Condition":{
+            "NumericGreaterThan":{
+               "ec2:MetadataHttpPutResponseHopLimit":"3"
+            }
+         }
+      },
+      {
+         "Effect":"Deny",
+         "Action":"*",
+         "Resource":"*",
+         "Condition":{
+            "NumericLessThan":{
+               "ec2:RoleDelivery":"2.0"
+            }
+         }
+      },
+      {
+         "Effect":"Deny",
+         "Action":"ec2:ModifyInstanceMetadataOptions",
+         "Resource":"*"
+      },
+      {
+         "Sid": "PreventCreateUnencryptedVolume",
+         "Effect": "Deny",
+         "Action": "ec2:CreateVolume",
+         "Resource": "*",
+         "Condition": {
+           "Bool": {
+             "ec2:Encrypted": "false"
+           }
+         }
+       },
+       {
+         "Sid": "PreventEc2MountUnencryptedVolume",
+         "Effect": "Deny",
+         "Action": "ec2:RunInstances",
+         "Resource": "arn:aws:ec2:*:*:volume/*",
+         "Condition": {
+           "Bool": {
+             "ec2:Encrypted": "false"
+            }
+          }
+       },
+      { 
+         "Sid": "DenyDisableEbsEncryptionByDefault",    
+         "Effect": "Deny", 
+         "Action": [ 
+               "ec2:DisableEbsEncryptionByDefault" 
+         ], 
+         "Resource": "*" 
+      },
+      {
+         "Sid": "DenyCreationAndAttachmentOfNonGP3Volumes",
+         "Effect": "Deny",
+         "Action": [
+         "ec2:AttachVolume",
+         "ec2:CreateVolume",
+         "ec2:RunInstances"
+         ],
+         "Resource": "arn:aws:ec2:*:*:volume/*",
+         "Condition": {
+         "StringNotEquals": {
+            "ec2:VolumeType": "gp3"
+         }
+         }
+      }
+   ]
+ }
+ 
