@@ -1,5 +1,10 @@
-FSx charges based on the storage and throughput capacity that you specify for your file system, and for any backups of your file system. You will also pay for data transferred “in” to and “out” from Amazon FSx across AZs or peering connections. The following can substantially cut FSx costs:
-
-Data deduplication a feature that takes care or data redundancy and that enables you store your data more efficiently and with less capacity requirements by removing all duplicate files. It helps cut costs with savings on average 30–50% for user documents and up to 70–80% for software development datasets and log files. It is by default disabled.
-HDD gives lower cost over SSD storage class and depending on the chosen class start from a lower storage capacity and scale/add capacity as needed as cost is per “allocated capacity” not used capacity.
-Start with lower throughput capacity and use CloudWatch to scale as needed.
+[ERROR] Runtime.ImportModuleError: Unable to import module 'lambda_function': No module named 'lambda_function'
+Traceback (most recent call last):
+INIT_REPORT Init Duration: 108.74 ms	Phase: init	Status: error	Error Type: Runtime.ImportModuleError
+[ERROR] Runtime.ImportModuleError: Unable to import module 'lambda_function': No module named 'lambda_function'
+Traceback (most recent call last):
+INIT_REPORT Init Duration: 141.35 ms	Phase: invoke	Status: error	Error Type: Runtime.ImportModuleError
+START RequestId: e47079d6-daaf-4c70-bd46-4df38dca896c Version: $LATEST
+Unknown application error occurred
+Runtime.ImportModuleError
+END RequestId: e47079d6-daaf-4c70-bd46-4df38dca896c
