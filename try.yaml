@@ -1,1 +1,26 @@
 
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "tag:GetResources",
+                "tag:GetTagKeys",
+                "tag:GetTagValues"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeTags",
+                "ec2:DescribeInstances",
+                "rds:ListTagsForResource",
+                "s3:GetBucketTagging",
+                "lambda:ListTags"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
