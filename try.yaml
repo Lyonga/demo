@@ -1,3 +1,4 @@
+aws resourcegroupstaggingapi get-resources --output json
 
 {
     "Version": "2012-10-17",
