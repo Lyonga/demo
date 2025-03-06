@@ -1,91 +1,924 @@
-To address the task effectively, follow these steps to quantify the potential savings from adopting your FSx cost optimization recommendations. This involves calculating percentage and monetary gains to present actionable decision points:
-1. Analyze Current Usage
+#################
 
-Gather data on the following metrics:
+Below is a thorough, step-by-step explanation of each major section and function in the provided script. The script is structured to (1) gather AWS Cost Explorer data for multiple accounts, (2) calculate monthly totals and percent changes, and (3) generate and email an HTML report summarizing the costs.
 
-    Current FSx Storage Capacity (SSD or HDD): Total provisioned capacity and used capacity.
-    Throughput Capacity: Current throughput level and average utilization.
-    Deduplication Status: Check if deduplication is enabled.
-    Backup Costs: Current backup size and frequency.
-    Data Transfer Costs: Analyze cross-AZ and peering transfer traffic.
+---
 
-Use AWS Cost Explorer, CloudWatch metrics, and FSx Console to collect these details.
-2. Simulate Savings Metrics
+## 1) **Global Constants and Setup**
 
-Based on the recommendations, calculate potential cost savings for each recommendation:
-A. Data Deduplication
+```python
+cost_explorer = boto3.client('ce')
 
-    Estimation Formula:
-    Savings Percentage=Expected Deduplication Efficiency (e.g., 30-50%)×Current Storage Cost
-    Savings Percentage=Expected Deduplication Efficiency (e.g., 30-50%)×Current Storage Cost
-        For user documents, assume a savings range of 30-50%.
-        For software development datasets/logs, assume 70-80%.
-        Savings in monetary value: Multiply the savings percentage by the storage cost.
-    Example: If your current monthly storage cost is $5,000, enabling deduplication with 50% efficiency could save:
-    50%×5000=2500 USD/month
-    50%×5000=2500 USD/month
+MONTHSBACK = 2 
+today = datetime.now()
+first_of_this_month = today.replace(day=1)
 
-B. HDD Storage Class vs. SSD
+start_date = (first_of_this_month - timedelta(days=MONTHSBACK * 30)).replace(day=1)
+end_date = first_of_this_month
 
-    Estimation Formula:
-    Savings Percentage=SSD Price - HDD PriceSSD Price×100
-    Savings Percentage=SSD PriceSSD Price - HDD Price​×100
-        HDD pricing is typically up to 50% lower than SSD. Use AWS pricing documentation for specific comparisons.
-        If SSD monthly cost is $1,000 and HDD cost is $500:
-        Savings Percentage=1000−5001000×100=50%
-        Savings Percentage=10001000−500​×100=50%
+MONTHLY_START_DATE = start_date.strftime('%Y-%m-%d')
+MONTHLY_END_DATE = end_date.strftime('%Y-%m-%d')
 
-C. Scaling Storage and Throughput
+print(f"Monthly reporting range: {MONTHLY_START_DATE} to {MONTHLY_END_DATE}")
 
-    Identify the average throughput utilization (use CloudWatch metrics).
-    Compare the current provisioned capacity with actual usage to estimate over-provisioning.
-    Estimation Formula:
-    Savings=(Provisioned Capacity - Average Usage)×Unit Cost
-    Savings=(Provisioned Capacity - Average Usage)×Unit Cost Example:
-        Provisioned throughput: 128 MBps at $0.12/MBps.
-        Average usage: 64 MBps.
-        Monthly cost savings:
-        (128−64)×0.12×720=552.96 USD/month
-        (128−64)×0.12×720=552.96 USD/month
-    (Assuming 720 hours/month).
+MONTHLY_COST_DATES = []
+temp_date = start_date
+while temp_date < end_date:
+    MONTHLY_COST_DATES.append(temp_date.strftime('%Y-%m-%d'))
+    next_month = (temp_date + timedelta(days=32)).replace(day=1)
+    temp_date = next_month
 
-3. Create a Savings Report
+print("MONTHLY_COST_DATES:", MONTHLY_COST_DATES)
+```
 
-Compile the findings into a detailed report with the following structure:
-A. Summary of Current Costs
+1. `cost_explorer = boto3.client('ce')` initializes a Cost Explorer client using `boto3`. This client will be used for querying AWS cost data.
+2. `MONTHSBACK = 2`: This indicates how many months back from the current month we want to look at in our cost reports.
+3. We calculate `today` and then get `first_of_this_month` to pinpoint the start of the current month.
+4. `start_date` is set to `first_of_this_month - timedelta(days=MONTHSBACK * 30)` and then forced to the 1st day of that month. This effectively gets us the first day of the month going back by `MONTHSBACK` months.
+5. `end_date` is just the first day of the current month.
+6. `MONTHLY_START_DATE` and `MONTHLY_END_DATE` are string versions (`YYYY-MM-DD`) of these dates.
+7. We print out the reporting range for clarity.
+8. **`MONTHLY_COST_DATES`** is a list of monthly boundaries between `start_date` and `end_date`. The script loops through each first-of-month until `temp_date` reaches `end_date`, pushing each date (`YYYY-MM-DD`) into `MONTHLY_COST_DATES`. This is used later when organizing costs by monthly intervals.
 
-    Current monthly FSx costs (storage, throughput, backups, data transfers).
-    Current deduplication status (enabled/disabled).
-    Over-provisioning metrics (storage/throughput).
+---
 
-B. Savings Metrics
+### Dictionaries for Account Names and Emails
 
-Provide detailed estimates of potential savings:
+```python
+accountDict = {
+    '384352530920': 'AWS-Workloads-Dev',
+    '454229460814': 'AWS-Workloads-QA',
+    '235163852221': 'AWS-Workloads-Prod'
+}
 
-    Deduplication: Highlight savings percentage and monetary value.
-    HDD Storage Class: Highlight savings from using HDD over SSD.
-    Scaling Provisioned Capacity: Show monetary savings from optimizing storage and throughput.
+accountMailDict = {
+    '384352530920': 'clyonga@nglic.com',
+    '454229460814': 'clyonga@nglic.com',
+    '235163852221': 'clyonga@nglic.com'
+}
+```
 
-C. Actionable Recommendations
+- `accountDict` maps AWS account IDs to more user-friendly names (e.g., `AWS-Workloads-Dev`, `AWS-Workloads-QA`, etc.).
+- `accountMailDict` maps the same account IDs to email addresses for notifications.  
 
-    Enable deduplication for suitable datasets.
-    Switch to HDD storage where performance requirements allow.
-    Use CloudWatch to monitor and dynamically scale storage and throughput.
+---
 
-D. Visualize Findings
+### List of Accounts to Display and HTML Heading
 
-    Include charts or graphs to show:
-        Current vs. Optimized Costs.
-        Percentage of savings per recommendation.
+```python
+displayListMonthly = [
+    '384352530920',
+    '454229460814',
+    '235163852221',
+    'monthTotal'
+]
 
-4. Example Metrics Table
-Recommendation	Current Cost (USD)	Savings (%)	Savings (USD/Month)
-Deduplication	$5,000	50%	$2,500
-HDD Storage Class	$1,000	50%	$500
-Scaling Throughput	$1,000	45%	$450
-5. Validate Findings
+BODY_HTML = '<h2> NGL TEAMS AWS Monthly Cost Report for NGL Accounts - Summary</h2>'
+```
 
-    Confirm assumptions with real FSx usage data.
-    Adjust the savings percentage ranges based on actual dataset characteristics and AWS pricing.
+- `displayListMonthly` defines the order in which we want to display accounts in our final HTML table. Notice it ends with `'monthTotal'`, which is used for the aggregated total per month.
+- `BODY_HTML` is the initial HTML header string used in the summary report.
 
-By presenting these metrics, you’ll give clear decision points for adopting cost-saving measures and justify the effort with quantifiable outcomes. Let me know if you'd like a template or specific AWS CLI/CloudWatch queries to assist in data collection!
+---
+
+## 2) **`load_routing_rules` Function**
+
+```python
+def load_routing_rules():
+    """
+    Expects a routing_rules.json in the same folder, with
+    {
+      "routes":[
+        {
+          "name": "EIS_Team",
+          "logicType":"OR",
+          "conditions": [
+            {"tagKey":"service_name","tagValues":[...]},
+            ...
+          ]
+        },
+        ...
+      ],
+      "adminEmails": [...]
+    }
+    """
+    curr_dir = os.path.dirname(__file__)
+    path = os.path.join(curr_dir, "routing_rules.json")
+    with open(path, "r") as f:
+        data = json.load(f)
+    return data
+```
+
+1. Looks in the same directory as the script (`curr_dir`) for a file named `routing_rules.json`.
+2. Opens and parses that JSON file into a Python dictionary.
+3. Returns the dictionary (which includes a list of route definitions and possibly a list of admin emails).
+
+This function is used later to decide how to filter AWS costs by tag keys and values (e.g., which team or service is responsible for particular costs).
+
+---
+
+## 3) **`build_ce_filter_for_route` Function**
+
+```python
+def build_ce_filter_for_route(route, account_numbers):
+    """
+    route example:
+    {
+      "name": "EIS_Team",
+      "logicType":"OR",
+      "conditions": [
+        { "tagKey":"service_name",  "tagValues":["traverse","dynatrace"] },
+        { "tagKey":"Service-Name",  "tagValues":["traverse","dynatrace"] },
+        ...
+      ]
+    }
+    """
+    ...
+```
+
+- **Purpose**: Given a “route” object (which has a `name`, `logicType`, and `conditions` for tag-based filters) plus a list of account IDs, it builds a structured filter to pass into Cost Explorer queries.
+- **How it works**:
+  1. It retrieves `logicType` (e.g. `"OR"` or `"AND"`).
+  2. It loops over each “condition” inside the route (like `{"tagKey":"service_name","tagValues":["traverse","dynatrace"]}`) and creates a subfilter object for each condition in the form:
+     ```python
+     {
+       "Tags": {
+         "Key": <cond["tagKey"]>,
+         "Values": <cond["tagValues"]>
+       }
+     }
+     ```
+  3. If `logicType` is `"AND"`, it merges those subfilters under `"And": [...]`; if `"OR"`, under `"Or": [...]`.
+  4. Separately, it includes a filter that ensures we only match the specified accounts:
+     ```python
+     {
+       "Dimensions": {
+         "Key": "LINKED_ACCOUNT",
+         "Values": account_numbers
+       }
+     }
+     ```
+  5. Finally, it wraps both the account filter and the tag-based filter into a single top-level `"And"` filter:
+     ```python
+     {
+       "And": [
+          account_filter,
+          merged_tags
+       ]
+     }
+     ```
+  6. Returns this final filter dict.
+
+This final filter is then passed to the Cost Explorer’s `get_cost_and_usage` call to retrieve cost data that meets these account + tag conditions.
+
+---
+
+## 4) **`ce_get_costinfo_per_account` Function**
+
+```python
+def ce_get_costinfo_per_account(accountDict_input):
+    accountCostDict = {}
+    ...
+    return accountCostDict
+```
+
+- **Purpose**: Queries the Cost Explorer API for each account in `accountDict_input` (keys are account IDs) and retrieves the aggregated cost for the entire monthly period (from `MONTHLY_START_DATE` to `MONTHLY_END_DATE`).
+- **How it works**:
+  1. Loops over each account ID in `accountDict_input`.
+  2. Calls `cost_explorer.get_cost_and_usage(...)` with:
+     - `TimePeriod`: from `MONTHLY_START_DATE` to `MONTHLY_END_DATE`.
+     - `Filter`: a dimension filter restricting by that specific account ID.
+     - `Metrics`: `['UnblendedCost']` to fetch the cost metric.
+  3. Sums up all monthly results (there might be multiple months in that window if `MONTHSBACK` > 1).
+  4. Stores the full API response in a dictionary keyed by the account ID (`accountCostDict[acct_id] = response`).
+  5. Returns this dictionary, where each value is the raw Cost Explorer response for that account.
+
+---
+
+## 5) **`process_costchanges_per_month` Function**
+
+```python
+def process_costchanges_per_month(accountCostDict_input):
+    ...
+    return reportCostDict
+```
+
+- **Purpose**: Converts the raw AWS API responses into a nested dictionary organized by **start date** and **account**. It places the monthly costs into a structure that can be easily aggregated.
+- **How it works**:
+  1. Initializes a new dictionary (`reportCostDict`) with keys for each date in `MONTHLY_COST_DATES`. Each value is an empty dictionary initially.
+  2. Iterates over each account (`acct_id`) and its corresponding Cost Explorer response.
+  3. For each monthly entry in `response_data['ResultsByTime']`, it extracts:
+     - The `start_str` (`TimePeriod['Start']`), e.g. `"2025-01-01"`.
+     - The cost value from `Total['UnblendedCost']['Amount']`.
+  4. Places that cost under `reportCostDict[start_str][acct_id] = {'Cost': <float>}`.
+  5. Afterwards, it calculates a `monthTotal` by summing the costs of all accounts for that date. It stores that under `reportCostDict[date_str]['monthTotal']`.
+  6. Returns `reportCostDict`, a dict of the form:
+     ```python
+     {
+       "2025-01-01": {
+         "384352530920": {"Cost": 123.45},
+         "454229460814": {"Cost": 678.90},
+         "monthTotal":    {"Cost": 802.35}
+       },
+       "2025-02-01": { ... }
+     }
+     ```
+
+---
+
+## 6) **`process_costchanges_for_display` Function**
+
+```python
+def process_costchanges_for_display(reportCostDict_input):
+    ...
+    return displayReportCostDict
+```
+
+- **Purpose**: Takes the dictionary from `process_costchanges_per_month()` and rearranges it so that the accounts in `displayListMonthly` are always shown, plus an “Others” category that sums the cost of any additional accounts not in `displayListMonthly`.
+- **How it works**:
+  1. Loops over every date in `reportCostDict_input`.
+  2. Creates a new dictionary `displayReportCostDict[date_str]`.
+  3. Tracks any account IDs not in `displayListMonthly` and sums their cost as `others_cost`.
+  4. For each account in `reportCostDict_input[date_str]`, if it’s in `displayListMonthly`, it is directly copied into `displayReportCostDict[date_str]`.
+  5. At the end, `displayReportCostDict[date_str]['Others'] = {'Cost': others_cost}` to hold the sum of all unlisted accounts.
+  6. Returns this reorganized dictionary.
+
+---
+
+## 7) **`process_percentchanges_per_month` Function**
+
+```python
+def process_percentchanges_per_month(reportCostDict_input):
+    ...
+    return reportCostDict_input
+```
+
+- **Purpose**: Calculates month-to-month percentage changes (`percentDelta`) for each account (and for the “Others” or “monthTotal” entries as well).
+- **How it works**:
+  1. Sorts the month keys in ascending order (chronologically).
+  2. Iterates through each month, comparing it with its previous month.
+  3. For each account/service key (`acct_id`) in the current month:
+     - Looks up the previous month’s cost (`prev_cost`).
+     - Computes `delta = (curr_cost / prev_cost) - 1`, if both `prev_cost` and `curr_cost` are nonzero.
+     - Stores this as `reportCostDict_input[curr_month][acct_id]['percentDelta'] = delta`.
+  4. For the earliest month in the list, it sets all `percentDelta` to `None` since there is no previous month to compare with.
+  5. Returns the same dictionary but with an added `percentDelta` field in each entry.
+
+---
+
+## 8) **`create_report_html` Function**
+
+```python
+def create_report_html(emailDisplayDict_input, BODY_HTML):
+    ...
+    return BODY_HTML
+```
+
+- **Purpose**: Renders the monthly cost data (with deltas) into an HTML table.
+- **How it works**:
+  1. It takes the cost dictionary (`emailDisplayDict_input`) that now includes `Cost` and `percentDelta` for each account.
+  2. Defines a helper function `evaluate_change(value)` to color-code cells based on the magnitude and sign of the percentage change.
+  3. Builds an HTML table with two header rows:
+     - The first row has account names (taken from `accountDict`) or “Total” for the column spanning two cells.
+     - The second row has “(account_id) / &Delta;%” column headings or similar.
+  4. Iterates through each sorted month, creating table rows:
+     - For each account in `displayListMonthly` (plus “Others” if included), it prints the `Cost` and the color-coded `percentDelta`.
+  5. Appends a small footer indicating the reporting window.
+  6. Returns the complete HTML string.
+
+---
+
+## 9) **`get_linked_accounts` Function**
+
+```python
+def get_linked_accounts(account_list):
+    ...
+    return defined_accounts
+```
+
+- **Purpose**: Queries AWS Cost Explorer to see which accounts are active in the given time period, then filters down to only those that appear in your provided `account_list`.
+- **How it works**:
+  1. Uses `get_dimension_values` with `Dimension='LINKED_ACCOUNT'` to retrieve all accounts that have cost data during the specified time window.
+  2. Stores these accounts in `active_accounts`.
+  3. Cross-references them with `account_list` so only known/defined accounts are returned.
+  4. Returns the subset `defined_accounts` that are both in your list and active.
+
+---
+
+## 10) **`get_cost_data` Function**
+
+```python
+def get_cost_data(account_numbers):
+    ...
+    return results
+```
+
+- **Purpose**: Retrieves **grouped cost data** by `(LINKED_ACCOUNT, SERVICE)` for the given list of `account_numbers`.
+- **How it works**:
+  1. Calls `cost_explorer.get_cost_and_usage` with:
+     - Monthly granularity,
+     - Metric = `UnblendedCost`,
+     - `GroupBy` set to `[{'Type': 'DIMENSION', 'Key': 'LINKED_ACCOUNT'}, {'Type': 'DIMENSION', 'Key': 'SERVICE'}]`.
+  2. Uses pagination logic (`NextPageToken`) to retrieve all pages of results.
+  3. Each page’s results contain a list of monthly time periods, each containing “Groups”. Each “Group” has the account ID and service as its “Keys” and the cost in “Metrics.UnblendedCost.Amount”.
+  4. Appends all of these results into a single list (`results`) and returns it.
+
+---
+
+## 11) **`get_tagged_cost_data` Function**
+
+```python
+def get_tagged_cost_data(account_numbers, custom_filter):
+    ...
+    return results
+```
+
+> **Note**: There are two versions of `get_tagged_cost_data` in the script. One near the end simply omits the `account_numbers` parameter, reusing a `custom_filter` that includes them. The logic is similar, but the key point is that you pass in the previously built `custom_filter` from `build_ce_filter_for_route`.
+
+- **Purpose**: This is similar to `get_cost_data` but uses a **custom filter** object (potentially involving multiple tag keys, “AND”/“OR” logic, etc.) to refine cost data retrieval.
+- **How it works**:
+  1. Calls `cost_explorer.get_cost_and_usage` with the provided `custom_filter`.
+  2. Groups the data by `(LINKED_ACCOUNT, SERVICE)`.
+  3. Collects and returns all monthly slices across pagination.
+
+Essentially, this is for retrieving cost data that matches particular tag-based conditions plus a set of account IDs.
+
+---
+
+## 12) **`restructure_cost_data` Function**
+
+```python
+def restructure_cost_data(cost_data_dict, account_numbers):
+    ...
+    return sorted_dict
+```
+
+- **Purpose**: Takes the raw grouped cost data (from `get_cost_and_usage`) and reorganizes it so that we have a structure keyed by account, then by service, then by month. 
+- **How it works**:
+  1. Initializes a dictionary with one entry per `acct_id` in `account_numbers`.
+  2. Loops over each monthly time block in `cost_data_dict` (the “ResultsByTime” array).
+  3. For each group in `time_item["Groups"]`, extracts:
+     - `acct_id = keys[0]`
+     - `service_label = keys[1]`
+     - The cost amount (`float(group["Metrics"]["UnblendedCost"]["Amount"])`)
+     - The date (`time_item["TimePeriod"]["Start"]`)
+  4. Inserts that cost into `display_cost_data_dict[acct_id][service_label][date]`.
+  5. Sorts service labels for each account to produce a cleaner, alphabetical dictionary (`sorted_dict`).
+
+The final structure is something like:
+```python
+{
+   "384352530920": {
+       "Amazon EC2": {
+          "2025-01-01": 123.45,
+          "2025-02-01": 456.78
+       },
+       "Amazon S3": { ... },
+       ...
+   },
+   "454229460814": { ... },
+   ...
+}
+```
+
+---
+
+## 13) **`merge_team_data` Function**
+
+```python
+def merge_team_data(overall_dict, team_dict):
+    ...
+    return final_info
+```
+
+- **Purpose**: Compares **overall** cost data to **team-specific** cost data for exactly two months (the “previous” month and the “current” month). It then computes deltas and merges them into a single structure.
+- **How it works**:
+  1. Collects all service names from both `overall_dict` and `team_dict`.
+  2. Gathers all month strings (the dictionary keys inside each service’s subdict) and sorts them. (Assumes exactly two months are present.)
+  3. For each service, extracts:
+     - `prev_overall` vs. `curr_overall`
+     - `prev_team` vs. `curr_team`
+  4. Calculates:
+     - `overallDeltaPct = (prev_overall / curr_overall) - 1` (if both are nonzero).
+     - `teamDeltaDollar = prev_team - curr_team`
+     - `teamDeltaPct = (prev_team / curr_team) - 1` (if both are nonzero).
+  5. Returns a dictionary `final_info[svc]` containing these new metrics.
+
+---
+
+## 14) **`generate_html_table_with_team` Function**
+
+```python
+def generate_html_table_with_team(final_info, acct_no):
+    ...
+    return html
+```
+
+- **Purpose**: Creates an HTML table comparing “overall” cost vs. “team” cost data for a given account number. The table shows five columns: 
+  1. Service Name
+  2. Overall Cost
+  3. Overall Δ%
+  4. Team Δ%
+  5. Team Δ$
+- **How it works**:
+  1. Builds an HTML table, looping through each service in `final_info`.
+  2. Uses `evaluate_change(value)` to color-code percentage changes in the 3rd and 4th columns.
+  3. Returns the final HTML snippet.
+
+---
+
+## 15) **`send_report_email` Function**
+
+```python
+def send_report_email(BODY_HTML):
+    ...
+```
+
+- **Purpose**: Uses AWS SES (Simple Email Service) to send out the final HTML report.
+- **How it works**:
+  1. Reads environment variables: `SENDER`, `RECIPIENT`, and `AWS_REGION` (defaults to “no-reply@example.com”, etc. if not set).
+  2. Calls `boto3.client('ses')`.
+  3. Constructs a `send_email` request with:
+     - `Destination` specifying `ToAddresses`.
+     - `Message.Body` in both `Html` and `Text`.
+     - `Message.Subject`.
+     - `Source` as the `SENDER`.
+  4. Attempts to send the email and prints out the Message ID or the error if something goes wrong.
+
+---
+
+## 16) **`lambda_handler` Function**
+
+```python
+def lambda_handler(event=None, context=None):
+    print("=== Starting Lambda Execution ===")
+
+    # (A) Summaries
+    mainCostDict    = ce_get_costinfo_per_account(accountDict)
+    monthlyDict     = process_costchanges_per_month(mainCostDict)
+    displayDict     = process_costchanges_for_display(monthlyDict)
+    finalDict       = process_percentchanges_per_month(displayDict)
+    summary_html    = create_report_html(finalDict, BODY_HTML)
+
+    # (B) Overall lumpsum by (account, service)
+    account_numbers = list(accountDict.keys())
+    overall_data    = get_cost_data(account_numbers)
+    display_overall = restructure_cost_data(overall_data, account_numbers)
+
+    # (C) Load routing_rules.json => multiple routes
+    routing_cfg = load_routing_rules()
+    routes      = routing_cfg["routes"]
+    admin_emails= routing_cfg.get("adminEmails", [])
+
+    all_route_tables = ""
+
+    # For each route, build a filter, get lumpsum cost, merge with overall
+    for route in routes:
+        route_name   = route["name"]
+        route_filter = build_ce_filter_for_route(route, account_numbers)
+        route_data   = get_tagged_cost_data(route_filter)
+        display_team = restructure_cost_data(route_data, account_numbers)
+
+        # merge with 'display_overall'
+        for acct_id in display_overall:
+            overall_dict = display_overall[acct_id]
+            team_dict    = display_team.get(acct_id, {})
+            final_info   = merge_team_data(overall_dict, team_dict)
+
+            # produce the table
+            table_html   = generate_html_table_with_team(final_info, acct_id)
+            all_route_tables += f"<h2>Route: {route_name}</h2>" + table_html + "<br>"
+
+    # Combine summary + route tables
+    combined_html = f"<div style='width:80%; margin:0 auto;'>{summary_html}<br><br>{all_route_tables}</div>"
+
+    # Email
+    send_report_email(combined_html)
+
+    print("=== Completed Lambda Execution ===")
+    return {"statusCode":200, "body":"Monthly Cost Report Sent!"}
+```
+
+- **Purpose**: This is the main entry point (Lambda handler) that orchestrates the entire process end-to-end.
+- **Workflow**:
+  1. **(A) Summaries**: 
+     - Calls `ce_get_costinfo_per_account(accountDict)` to retrieve cost info for each account.
+     - Processes month-by-month costs (`process_costchanges_per_month`), merges them into a display-friendly structure (`process_costchanges_for_display`), computes percentage changes (`process_percentchanges_per_month`), and finally generates a summary HTML table (`create_report_html`).
+  2. **(B) Overall lumpsum**:
+     - Retrieves more detailed cost data grouped by `(account, service)` via `get_cost_data`.
+     - Restructures it into a dictionary with months keyed under each service (`restructure_cost_data`).
+  3. **(C) Routing**:
+     - Loads the routing rules JSON (`load_routing_rules`) to figure out which tags correspond to which team or route.
+     - For each route, calls `build_ce_filter_for_route` to make a custom filter, then `get_tagged_cost_data` to get that subset’s lumpsum cost data. Restructures it as well.
+     - Compares “team vs. overall” data via `merge_team_data` and then builds an HTML table per account with `generate_html_table_with_team`.
+  4. Combines the summary HTML from part (A) plus all the route tables from part (C).
+  5. Sends the combined report via SES (`send_report_email`).
+  6. Returns a success response.
+
+---
+
+### Final Thoughts
+
+- **Overall Flow**: 
+  1. Compute the time window.
+  2. For each account, gather cost usage data for the relevant months.
+  3. Reorganize that data, compute totals and percent changes, and build an HTML summary table.
+  4. Optionally, for more complex usage breakdowns, build filters from the “routing rules” (which contain tag-based conditions), retrieve specific cost data subsets, compare them to the overall usage, and generate team-level tables.
+  5. Send everything out via email.
+
+- **Key Takeaway**: Each function handles a distinct step: data retrieval, data transformation, calculation of totals/deltas, or HTML generation. The final Lambda handler composes these steps into a single, end-to-end cost reporting workflow.
+
+
+
+################
+
+
+
+Below is an **orderly, step-by-step sequence** showing how each function’s output is used in the next function—and highlighting where there are any **gaps or redundancies**. In addition, the explanation concludes with a detailed look at the **main function (`lambda_handler`)**: why it calls each step, the arguments it receives, and how it orchestrates the entire process.
+
+---
+
+## Overview of the Workflow
+
+1. **Lambda Handler** (`lambda_handler`):
+   - Drives the entire process:
+     1. Retrieves cost summaries across months.
+     2. Prepares a final summary HTML table.
+     3. Retrieves a more detailed “per-service” breakdown (for both overall and team/tagged costs).
+     4. Merges that data for each route/team and generates additional HTML tables.
+     5. Sends out the combined HTML report via SES.
+
+2. **Functions Called in Sequence**:
+   - **(A) Summaries**:
+     1. `ce_get_costinfo_per_account` → produces a “mainCostDict”  
+     2. `process_costchanges_per_month` → produces “monthlyDict”  
+     3. `process_costchanges_for_display` → produces “displayDict”  
+     4. `process_percentchanges_per_month` → produces “finalDict”  
+     5. `create_report_html` → produces “summary_html”
+   - **(B) Overall lumpsum data** (account × service):
+     6. `get_cost_data` → produces “overall_data”  
+     7. `restructure_cost_data` → produces “display_overall”
+   - **(C) Routing / Team Tagging**:
+     8. `load_routing_rules` → produces “routing_cfg” (has `routes`)  
+     9. For each route:  
+        9a. `build_ce_filter_for_route` → “route_filter”  
+        9b. `get_tagged_cost_data` → “route_data”  
+        9c. `restructure_cost_data` → “display_team”  
+        9d. For each account: `merge_team_data` → “final_info” → `generate_html_table_with_team` → “table_html”
+   - Finally, everything is combined into “combined_html” → `send_report_email` → done.
+
+---
+
+## Detailed Step-by-Step With Inputs/Outputs
+
+### 1) `ce_get_costinfo_per_account(accountDict_input)`
+- **Arguments**: 
+  - A dictionary of accounts, e.g. `{'384352530920': 'AWS-Workloads-Dev', ...}`.
+- **Process**:
+  - For each account ID, queries AWS Cost Explorer (`get_cost_and_usage`) over the monthly window (`MONTHLY_START_DATE` to `MONTHLY_END_DATE`).
+  - Accumulates the cost in the raw AWS response.
+- **Output**: 
+  - **`mainCostDict`** – a dictionary keyed by account ID. Each value is the raw Cost Explorer response for that account.
+
+**Where it’s used next**: 
+- The output `mainCostDict` is passed **directly** into `process_costchanges_per_month`.
+
+---
+
+### 2) `process_costchanges_per_month(accountCostDict_input)`
+- **Arguments**: 
+  - The dictionary returned by `ce_get_costinfo_per_account`, i.e. `mainCostDict`.
+- **Process**:
+  - Iterates over each account’s raw Cost Explorer response.  
+  - Extracts monthly cost from the `ResultsByTime` array.  
+  - Organizes it by date → then by account → cost.  
+  - Also calculates and stores `monthTotal` cost by summing all accounts per month.
+- **Output**: 
+  - **`monthlyDict`** – a structure like:
+    ```python
+    {
+      "2025-01-01": {
+        "384352530920": {"Cost": 123.45},
+        "454229460814": {"Cost": 456.78},
+        "monthTotal":    {"Cost": 580.23}
+      },
+      "2025-02-01": {
+        ...
+      }
+    }
+    ```
+
+**Where it’s used next**:
+- `monthlyDict` is passed into `process_costchanges_for_display`.
+
+---
+
+### 3) `process_costchanges_for_display(reportCostDict_input)`
+- **Arguments**:
+  - The dictionary returned by `process_costchanges_per_month` (i.e. `monthlyDict`).
+- **Process**:
+  - Looks at each month’s data.  
+  - Copies costs for accounts that appear in `displayListMonthly` exactly, and sums all “other” accounts into a single `'Others'` category.
+- **Output**:
+  - **`displayDict`** – a structure with the same outer shape (month → accounts), but it ensures only the accounts in `displayListMonthly` are shown individually, plus an aggregated `'Others'` cost.
+
+**Where it’s used next**:
+- The result `displayDict` is passed into `process_percentchanges_per_month`.
+
+---
+
+### 4) `process_percentchanges_per_month(reportCostDict_input)`
+- **Arguments**:
+  - The dictionary returned by `process_costchanges_for_display` (i.e. `displayDict`).
+- **Process**:
+  - Sorts the months in chronological order.  
+  - Compares each month’s cost with the previous month’s cost, computing a `percentDelta = (current / previous) - 1` if both are non-zero.  
+  - Attaches `percentDelta` to each account’s dictionary for that month.
+- **Output**:
+  - **`finalDict`** – the same dictionary shape, but now each account (or `'Others'` / `'monthTotal'`) has an extra field `'percentDelta'`.
+
+**Where it’s used next**:
+- Passed into `create_report_html` to generate the final HTML summary.
+
+---
+
+### 5) `create_report_html(emailDisplayDict_input, BODY_HTML)`
+- **Arguments**:
+  - The dictionary returned by `process_percentchanges_per_month` (`finalDict`).
+  - A base HTML string `BODY_HTML` (initial heading).
+- **Process**:
+  - Builds an HTML table from the dictionary.  
+  - For each month (row) and each account in `displayListMonthly` plus `'Others'`, inserts:
+    - The cost (`Cost`)  
+    - A color-coded cell for the percentage delta (`percentDelta`)  
+  - Returns a large HTML block containing the summary table.  
+- **Output**:
+  - **`summary_html`** – the final HTML snippet showing the month-by-month summary.
+
+**Where it’s used next**:
+- `summary_html` is combined later in the `lambda_handler` with more detailed route/team tables.
+
+---
+
+### 6) `get_cost_data(account_numbers)`
+- **Arguments**:
+  - A list of account IDs, e.g. `[ '384352530920', '454229460814', '235163852221' ]`.
+- **Process**:
+  - Calls `cost_explorer.get_cost_and_usage`, grouping by `LINKED_ACCOUNT` and `SERVICE`.
+  - Accumulates all pages into a list of monthly result blocks. Each block has `TimePeriod` plus a list of `Groups`, each containing `(account_id, service)` and `UnblendedCost`.
+- **Output**:
+  - **`overall_data`** – a list of time-based blocks for all accounts, each containing multiple `(acct, service)` group cost entries.
+
+**Where it’s used next**:
+- Passed into `restructure_cost_data` to reorganize it by account → service → date.
+
+---
+
+### 7) `restructure_cost_data(cost_data_dict, account_numbers)`
+- **Arguments**:
+  - `overall_data` (or any list of results from `get_cost_and_usage`) plus the same `account_numbers`.
+- **Process**:
+  - Initializes a dictionary structure keyed by each account.
+  - Examines each monthly time block, plus each group.  
+  - Extracts `(acct_id, service, cost)` and the `Start` date, populating a nested structure:
+    ```python
+    {
+      acct_id: {
+         service_name: {
+            "2025-01-01": cost,
+            "2025-02-01": cost,
+            ...
+         },
+         ...
+      },
+      ...
+    }
+    ```
+- **Output**:
+  - **`display_overall`** – reorganized cost data that is easier to compare or merge by month.
+
+**Where it’s used next** (in the main flow):
+- Eventually used in route-based comparisons:  
+  - We generate “overall” data with `restructure_cost_data`, and then we generate “team” data with the same function.  
+  - Finally, we merge those two sets via `merge_team_data`.
+
+---
+
+### 8) `load_routing_rules()`
+- **Arguments**:
+  - No arguments; it finds and reads `routing_rules.json`.
+- **Process**:
+  - Opens and parses a JSON file containing routing definitions: each route has a `name`, `logicType` (OR/AND), and `conditions` (tagKey, tagValues).
+  - Also optionally has `adminEmails`.
+- **Output**:
+  - **`routing_cfg`** – an object like:
+    ```json
+    {
+      "routes":[
+        {"name":"EIS_Team","logicType":"OR","conditions":[...]},
+        ...
+      ],
+      "adminEmails":[ "someone@example.com", ... ]
+    }
+    ```
+
+**Where it’s used next**:
+- The `routes` array from `routing_cfg` is iterated in the main function to build specialized filters and gather team-based cost data.
+
+---
+
+### 9) `build_ce_filter_for_route(route, account_numbers)`
+- **Arguments**:
+  - A single route from `routing_cfg["routes"]`, which might have `logicType` (“OR” or “AND”) and `conditions`.
+  - The list of account IDs to filter by.
+- **Process**:
+  - Creates subfilters for each `condition` (`tagKey` + `tagValues`).
+  - Depending on `logicType`, it merges those subfilters under an `"And"` or `"Or"` block.
+  - Always includes an “account filter” (the `LINKED_ACCOUNT` dimension) to restrict results to your chosen accounts.
+- **Output**:
+  - **`route_filter`** – a nested dictionary that can be passed directly to Cost Explorer’s `get_cost_and_usage` as the `Filter`.
+
+**Where it’s used next**:
+- Passed to `get_tagged_cost_data(route_filter)` to retrieve cost data that matches that route’s tag conditions.
+
+---
+
+### 10) `get_tagged_cost_data(custom_filter)`
+- **Arguments**:
+  - The filter object from `build_ce_filter_for_route` (or a custom one).
+- **Process**:
+  - Similar to `get_cost_data`, but uses `Filter=custom_filter` instead of a simpler dimension filter. 
+  - Retrieves cost data grouped by `(LINKED_ACCOUNT, SERVICE)`.
+- **Output**:
+  - **`route_data`** – A list of monthly result blocks for the matching subset of data (i.e., only the cost entries that meet the tag-based conditions).
+
+**Where it’s used next**:
+- Passed into `restructure_cost_data(route_data, account_numbers)` to create a month-by-month cost structure for that route/team.
+
+---
+
+### 11) `merge_team_data(overall_dict, team_dict)`
+- **Arguments**:
+  - Two dicts from `restructure_cost_data`: 
+    1. `overall_dict`: The “all services” data for a single account.  
+    2. `team_dict`: The “team-tagged services” data for the same account.
+- **Process**:
+  - Assumes there are exactly two months in each dictionary.  
+  - Gathers the service names from both.  
+  - For each service, calculates changes between `prev` and `curr` for:
+    - Overall cost (`overallDeltaPct`)  
+    - Team cost differences (`teamDeltaPct` and `teamDeltaDollar`)
+- **Output**:
+  - **`final_info`** – a dictionary keyed by service name, each containing the newly computed stats:  
+    ```python
+    {
+      "Amazon EC2": {
+        "overallCurr": 123.45,
+        "overallDeltaPct": 0.10,   # e.g. 10%
+        "teamDeltaPct": -0.05,     # e.g. -5%
+        "teamDeltaDollar": -12.34
+      },
+      ...
+    }
+    ```
+
+**Where it’s used next**:
+- Passed to `generate_html_table_with_team(final_info, acct_id)`.
+
+---
+
+### 12) `generate_html_table_with_team(final_info, acct_no)`
+- **Arguments**:
+  - The merged info from `merge_team_data`.
+  - The account number (`acct_no`) to identify whose data this is.
+- **Process**:
+  - Builds an HTML table with columns:  
+    1. Service Name  
+    2. Overall Cost  
+    3. Overall Δ%  
+    4. Team Δ%  
+    5. Team Δ$  
+  - Applies basic color-coding for the percentage changes.
+- **Output**:
+  - **`table_html`** – an HTML block representing the data for that route/team and this specific account.
+
+**Where it’s used next**:
+- Accumulated into `all_route_tables` (a big string) in the main function, then combined with the summary HTML.
+
+---
+
+### 13) `send_report_email(BODY_HTML)`
+- **Arguments**:
+  - A final, concatenated HTML string from the previous steps (e.g. `combined_html`).
+- **Process**:
+  - Uses `boto3.client('ses')` to send an email with:
+    - A subject line,
+    - A text body,
+    - An HTML body containing cost tables,
+    - Destination addresses.  
+- **Output**:
+  - None (but it triggers an email via AWS SES).
+
+**Where it’s used next**:
+- This is effectively the last step; it doesn’t feed into another function.
+
+---
+
+## Main Function: `lambda_handler`
+
+Finally, let’s see how **`lambda_handler(event, context)`** ties everything together in an **orderly sequence**, and **why** it calls each function:
+
+```python
+def lambda_handler(event=None, context=None):
+    print("=== Starting Lambda Execution ===")
+
+    # (A) Summaries
+    mainCostDict = ce_get_costinfo_per_account(accountDict)
+      # => Query cost data for each account; store raw CE responses
+    monthlyDict  = process_costchanges_per_month(mainCostDict)
+      # => Convert raw responses into a { month → { acct → cost } } dict
+    displayDict  = process_costchanges_for_display(monthlyDict)
+      # => Separate out only certain accounts + “Others”
+    finalDict    = process_percentchanges_per_month(displayDict)
+      # => Calculate month-to-month % changes
+    summary_html = create_report_html(finalDict, BODY_HTML)
+      # => Build the big HTML summary table (Month vs. Cost vs. % Change)
+
+    # (B) Overall lumpsum by (account, service)
+    account_numbers = list(accountDict.keys())
+    overall_data    = get_cost_data(account_numbers)
+      # => Query cost data grouped by (account, service)
+    display_overall = restructure_cost_data(overall_data, account_numbers)
+      # => Create nested dict { acct_id → { service → { date: cost, ...} } }
+
+    # (C) Load routing_rules.json => multiple routes
+    routing_cfg = load_routing_rules()
+    routes      = routing_cfg["routes"] 
+      # => Possibly includes multiple sets of tag conditions
+    admin_emails= routing_cfg.get("adminEmails", [])
+
+    all_route_tables = ""
+
+    # For each route, build a filter, get lumpsum cost, merge with overall
+    for route in routes:
+        route_name   = route["name"]
+        route_filter = build_ce_filter_for_route(route, account_numbers)
+          # => Combine the route’s tag-based conditions with the accounts
+        route_data   = get_tagged_cost_data(route_filter)
+          # => Query cost data only matching those tag conditions
+        display_team = restructure_cost_data(route_data, account_numbers)
+          # => Convert that to the same nested structure
+
+        # Merge with 'display_overall' for each account
+        for acct_id in display_overall:
+            overall_dict = display_overall[acct_id]
+            team_dict    = display_team.get(acct_id, {})
+            final_info   = merge_team_data(overall_dict, team_dict)
+              # => Compares overall vs. team cost for (prev, curr) months
+
+            # Build an HTML snippet for this route’s data
+            table_html   = generate_html_table_with_team(final_info, acct_id)
+            all_route_tables += f"<h2>Route: {route_name}</h2>" + table_html + "<br>"
+
+    # Combine summary + route tables
+    combined_html = f"<div style='width:80%; margin:0 auto;'>{summary_html}<br><br>{all_route_tables}</div>"
+
+    # Email the full combined report
+    send_report_email(combined_html)
+
+    print("=== Completed Lambda Execution ===")
+    return {"statusCode":200, "body":"Monthly Cost Report Sent!"}
+```
+
+1. **(A) Summaries**: The first block gathers a high-level monthly cost summary for each account, calculates monthly changes, and generates a summary HTML table.  
+2. **(B) Overall lumpsum**: Then the function obtains more granular data by `(account, service)`. This is reorganized to let us see each service’s cost per month in a consistent structure.  
+3. **(C) Routing**:  
+   - Reads in the routing rules for teams/services (`load_routing_rules`).  
+   - For each defined route, it builds a custom filter (`build_ce_filter_for_route`) and pulls cost data for that subset of tags.  
+   - Restructures that data, merges it with the “overall” data, and builds an HTML table showing how the team’s cost changed relative to the overall cost.  
+4. **Finally**: It concatenates the summary HTML from (A) with the route-level data from (C) into `combined_html` and sends it out via SES.
+
+---
+
+## Gaps and Redundancies
+
+1. **Duplicate `get_tagged_cost_data` Definitions**  
+   - Near the bottom of the script, there is a second definition of `get_tagged_cost_data(custom_filter)` that omits the `account_numbers` parameter. The main body of code calls a version that does accept `account_numbers` or builds the filter internally, so one of these definitions may be redundant depending on usage.
+2. **`get_linked_accounts`** Not Called  
+   - The script defines `get_linked_accounts(account_list)` but does **not** seem to use it in the final flow. Instead, the main function just uses a pre-known list of account IDs (`accountDict.keys()`). This is a potential gap if you intended to dynamically discover active accounts.
+3. **Month-by-Month Logic vs. Exact Window**  
+   - The code calculates a window with `MONTHSBACK * 30` days but also forces day=1. This is fine but can introduce slight mismatches with actual monthly boundaries if the months have 31 or fewer than 30 days.  
+4. **Assumption of 2 Months for Merging**  
+   - Some logic in `merge_team_data` explicitly tries to compare only two months (`prev_m` and `curr_m`). If `start_date` / `end_date` covers more months, that code might skip or incorrectly handle extra months.
+
+Overall, the key potential redundancy is the **two definitions of `get_tagged_cost_data`** and the **unused `get_linked_accounts`** function. Everything else forms a coherent workflow as shown above.
+
+---
+
+### Summary
+
+- The **main function** (`lambda_handler`) orchestrates the entire data retrieval and reporting process.  
+- Each **intermediate function** receives a structured input (e.g., the raw data from Cost Explorer) and produces an increasingly organized, computed, or formatted output (e.g., monthly totals, percent deltas, or HTML tables).  
+- Ultimately, **the final HTML** is sent via **`send_report_email`**.
+
+By following the chain of function calls (A → B → C), you can see **exactly how each function’s return value is consumed** by the next. This modular approach allows each piece of functionality (data fetching, data restructuring, HTML creation) to be handled in a well-defined, testable block of code.
