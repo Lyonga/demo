@@ -1,4 +1,178 @@
-The EC2 hardening repo is exciting to see. A few next steps to fully operationalize this comes to mind:
-1.	In order to take full advantage of this pattern having some consumer documentation and marketing of this is important.
-2.	As a part of that consumer flow I’d suggest considering either making this repo a template repo or structuring it as a centrally maintained module (cosmos module) that can be inherited by other terraform repos (I can provide examples and more detail on either option)
-3.	As an accompanying factor to the template I’d suggest considering what guardrails (SCP’s, RCP’s, etc) should be put in place for various aspects of the hardening to prevent variance from the standard and further increase the value of the template. This is the most common strategy I have seen effectively used for shifting work to the app owning teams as a part of the devops model. Given them a template to make it easy and implement guardrails to still support edge cases while minimizing them.
+Below is a **practical guide** on how to **resolve all the redundancies** in your script and address specific points:
+
+---
+
+## 1) Dealing With Multiple `get_tagged_cost_data` Definitions
+
+Your script currently shows **two versions** of `get_tagged_cost_data`:
+
+- **Version A** (with a parameter `get_tagged_cost_data(account_numbers, custom_filter)`).
+- **Version B** (without the `account_numbers` parameter).
+
+Often, only **one** version is needed:  
+- **Option 1**: If you are already specifying which accounts to filter in the `custom_filter` (i.e., the filter itself includes the `LINKED_ACCOUNT` dimension), then you can drop the `account_numbers` argument.  
+- **Option 2**: If you want to pass `account_numbers` separately, you can incorporate them into the final filter inside the function.
+
+### **Resolution**:
+1. **Keep** whichever definition **best matches your usage**. 
+2. **Remove** or **comment out** the other one. 
+3. If you need both approaches, rename them more clearly to avoid confusion, e.g.:
+   - `get_tagged_cost_data_with_accounts(custom_filter, account_numbers)`
+   - `get_tagged_cost_data_no_accounts(custom_filter)`
+
+From the **main function** (`lambda_handler`) perspective, if you’re calling:
+
+```python
+route_filter = build_ce_filter_for_route(route, account_numbers)
+route_data   = get_tagged_cost_data(route_filter)  # Filter includes accounts
+```
+
+Then your `custom_filter` **already** has `account_numbers` inside it. Hence, **you do NOT** need a separate `account_numbers` parameter. So you can **use Version B only**, which is simpler:
+
+```python
+def get_tagged_cost_data(custom_filter):
+    ...
+```
+
+This keeps things consistent.
+
+---
+
+## 2) Determining if the Main Function Uses `get_tagged_cost_data` With Account Numbers
+
+By default, your **`lambda_handler`** code calls:
+
+```python
+route_filter = build_ce_filter_for_route(route, account_numbers)
+route_data   = get_tagged_cost_data(route_filter)
+```
+
+- Here, `get_tagged_cost_data(...)` accepts a single argument (the `route_filter`).  
+- The “account_numbers” have already been embedded into that filter thanks to `build_ce_filter_for_route(route, account_numbers)`.
+
+**Answer**:  
+- The main function **does NOT** directly pass `account_numbers` as a separate argument to `get_tagged_cost_data`. It uses the filter that **already** includes the account dimension.  
+- Therefore, you only need a single version of the function: `get_tagged_cost_data(custom_filter)` with no separate `account_numbers` parameter.
+
+---
+
+## 3) How to Use `get_linked_accounts` in the Main Flow
+
+Your script defines:
+
+```python
+def get_linked_accounts(account_list):
+    # returns a list of defined accounts that are also "active" in the given date range
+```
+
+**But** the main function never calls it. Instead, you hardcode:
+
+```python
+account_numbers = list(accountDict.keys())
+```
+
+**To leverage `get_linked_accounts`,** you can replace that line with something like:
+
+```python
+# Instead of listing keys directly:
+candidate_accounts = list(accountDict.keys())
+# Now call get_linked_accounts to ensure they are actually active in the cost data
+account_numbers = get_linked_accounts(candidate_accounts)
+```
+
+You then proceed using `account_numbers` in the rest of the code. This ensures that if, for example, one of the accounts is not active or has no cost data, it won’t be included in subsequent calls.
+
+### Example snippet:
+
+```python
+# (B) Overall lumpsum by (account, service)
+candidate_accounts = list(accountDict.keys())
+account_numbers    = get_linked_accounts(candidate_accounts)  # filter by active
+
+overall_data = get_cost_data(account_numbers)
+display_overall = restructure_cost_data(overall_data, account_numbers)
+```
+
+This way, you actually use the `get_linked_accounts` function **as intended**.
+
+---
+
+## 4) Setting an Exact Monthly Window
+
+Right now, the logic for `start_date` and `end_date` is:
+
+```python
+MONTHSBACK = 2
+today = datetime.now()
+first_of_this_month = today.replace(day=1)
+
+start_date = (first_of_this_month - timedelta(days=MONTHSBACK * 30)).replace(day=1)
+end_date = first_of_this_month
+```
+
+This can be **inexact** due to 28, 29, 30, or 31 days in a month. A more **robust** approach is to use a library like `dateutil`’s `relativedelta`, or you can simply do:
+
+```python
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
+today = datetime.now()
+first_of_this_month = today.replace(day=1)
+
+# Subtract exactly 2 calendar months:
+start_date = first_of_this_month - relativedelta(months=MONTHSBACK)
+end_date   = first_of_this_month
+```
+
+Then your final strings:
+
+```python
+MONTHLY_START_DATE = start_date.strftime('%Y-%m-%d')
+MONTHLY_END_DATE   = end_date.strftime('%Y-%m-%d')
+```
+
+This ensures:
+- **start_date** is the first day of **exactly 2 months** prior,
+- **end_date** is the first day of the **current month**, 
+- No confusion around 28 vs. 30 vs. 31 days.
+
+You can also decide if you want `end_date` to be **exclusive** or **inclusive**. AWS Cost Explorer typically expects the **End** in its queries to be exclusive, i.e. “up to but not including end_date”. So if you want January’s full cost, you do:
+
+- `Start = "2023-01-01"`
+- `End   = "2023-02-01"`  (so cost data up to Jan 31 is included)
+
+If you want the month **inclusively**, you might do `end_date = first_of_this_month + relativedelta(days=-1)` or similar. But typically for monthly cost reporting, the `start_date` of each month and the next month’s first day as `end_date` is a common approach.
+
+---
+
+## Summary of Changes to Resolve Redundancies
+
+1. **Keep a single `get_tagged_cost_data(custom_filter)`** definition.  
+   - Remove or ignore the second version that takes both `(account_numbers, custom_filter)`.
+   - Confirm that your `build_ce_filter_for_route` includes the account dimension so you don’t need to separately pass `account_numbers`.
+
+2. **Actually use `get_linked_accounts`** if you want to confirm which accounts are active.  
+   - Replace `account_numbers = list(accountDict.keys())` with:
+     ```python
+     candidate_accounts = list(accountDict.keys())
+     account_numbers = get_linked_accounts(candidate_accounts)
+     ```
+   - This ensures you only operate on accounts that truly appear in the Cost Explorer dimension values.
+
+3. **Use `relativedelta`** (from `dateutil`) to set an **exact window**:
+   ```python
+   from dateutil.relativedelta import relativedelta
+
+   MONTHSBACK = 2
+   today = datetime.now()
+   first_of_this_month = today.replace(day=1)
+   start_date = first_of_this_month - relativedelta(months=MONTHSBACK)
+   end_date   = first_of_this_month
+   ```
+
+With these changes:
+- You remove duplicate code.
+- You handle the monthly window precisely (not influenced by 28/29/30/31 days).
+- You can dynamically detect active accounts.
+
+This aligns your code more cleanly, ensuring **no** unused or conflicting functions remain, and producing consistent **monthly** cost data.
