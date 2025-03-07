@@ -1,275 +1,340 @@
+- windows_ec2 in modules/compute/windows
+- windows_ssm_docs in modules/ssm-documents/windows
+╷
+│ Error: Argument or block definition required
+│ 
+│   on modules/compute/variables.tf line 85, in locals:
+│   85:     ? var.override_ami
+│ 
+│ An argument or block definition is required here.
+╵
+
+╷
+│ Error: Argument or block definition required
+│ 
+│   on modules/compute/windows/variables.tf line 86, in locals:
+│   86:     ? var.override_ami
+│ 
+│ An argument or block definition is required here.
+╵
+
+Error: Process completed with exit code 1.
 
 
-Below is an illustrative example of how you can structure a **“compute” module** that creates an EC2 instance (or launch template) and pulls the IAM instance profile from a **separate IAM module**. In this scenario:
-
-1. We have one module folder called `modules/iam/` that outputs an instance profile name (or ARN).  
-2. We have another folder called `modules/compute/` (or `ec2-hardened/`) that references the IAM module to retrieve the IAM instance profile, then applies it to the launch template or EC2 resource.
-
----
-
-## 1. IAM Module
-
-**Folder**: `modules/iam/`
-
-For illustration, this module creates an IAM role and an instance profile. It **outputs** the instance profile name so other modules can use it.
-
-### `modules/iam/main.tf`
-
-```hcl
-////////////////////////////////////////////////////////////////////////
-// modules/iam/main.tf
-////////////////////////////////////////////////////////////////////////
-
-resource "aws_iam_role" "ec2_role" {
-  name               = var.iam_role_name
-  assume_role_policy = data.aws_iam_policy_document.assume_ec2.json
-  tags               = var.tags
+variable "product_name" {
+  type        = string
+  description = "name of the product for resources"
+  default     = "spaceport"
 }
 
-data "aws_iam_policy_document" "assume_ec2" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
+variable "project_name" {
+  type        = string
+  description = "name of the project for resources"
+  default     = "traverse" 
+}
+
+variable "service_name" {
+  type        = string
+  description = "name of the service for resources"
+  default     = "infrastructure-tools"
+}
+
+variable "environment_name" {
+  type        = string
+  description = "name of the environment where resources are deployed"
+  validation {
+    condition     = contains(["dev", "qa", "prod"], var.environment_name)
+    error_message = "Value must be one of the following: ['dev', 'qa', 'prod']"
+  }
+  default     = "dev"
+}
+
+locals {
+  prefix = var.service_name
+  instance_security_group = "${var.stack_name}-ec2-security-group"
+  ec2_launch_template_name = "${var.stack_name}-ec2-launch-template"
+  linux_launch_template_name = "${var.stack_name}-linux-server-launch-template"
+  instance_iam_profile = "${var.stack_name}-ec2-instance-profile"
+  linux_adjoin_name = "${var.stack_name}-lunux-domain-join"
+  instance_auto_recovery_alarm-name = "${var.stack_name}-instance-autorecovery-alarm"
+  system_status_check_alarm_name = "${var.stack_name}-system-status-check-alarm"
+  disk_space_alarm-name = "${var.stack_name}-ebs-disk-space-alarm"
+  warning_sns = "${var.stack_name}-warning-sns-topic"
+  critical_sns = "${var.stack_name}-critical-sns-topic"
+  cpu_alarm-name ="${var.stack_name}-Instance-CPUUtilization-alarm"
+  memory_alarm-name = "${var.stack_name}-Instance-memory-utilization-alarm"
+  instance_status_check_alarm-name = "${var.stack_name}-instance-autorecovery-alarm"
+
+
+  default_tags = {
+    environment_name = var.environment_name,
+    product_name = var.product_name,
+    project_name = var.project_name,
+    service_name = var.service_name,
+    created_by  = "terraform"
+    Team        = "EIS"
+  }
+
+  vpc_info = {
+    dev = {
+      "vpc"             = "vpc-072395b5d96856310"
+      "subnets"         = ["subnet-0d327ff0e2e84a195", "subnet-0934df13dc88ccb2d"]
+      "security_groups" = ["xxxxxxx", "xxxxxxx"]
+    }
+    qa = {
+      "vpc"             = ""
+      "subnets"         = [""]
+      "security_groups" = [""]
+    }
+    prod = {
+      "vpc"             = "xxxxxxx"
+      "subnets"         = ["xxxxxxx"]
+      "security_groups" = ["xxxxxxx", "xxxxxxx"]
     }
   }
-}
-
-resource "aws_iam_role_policy_attachment" "attach_ssm" {
-  role       = aws_iam_role.ec2_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-resource "aws_iam_instance_profile" "ec2_instance_profile" {
-  name = var.iam_instance_profile_name
-  role = aws_iam_role.ec2_role.name
-  tags = var.tags
-}
-```
-
-### `modules/iam/variables.tf`
-
-```hcl
-variable "iam_role_name" {
-  type        = string
-  description = "Name for the IAM role"
-  default     = "my-ec2-role"
-}
-
-variable "iam_instance_profile_name" {
-  type        = string
-  description = "Name for the IAM instance profile"
-  default     = "my-ec2-instance-profile"
-}
-
-variable "tags" {
-  type    = map(string)
-  default = {}
-}
-```
-
-### `modules/iam/outputs.tf`
-
-```hcl
-output "instance_profile_name" {
-  description = "The IAM instance profile name for the EC2"
-  value       = aws_iam_instance_profile.ec2_instance_profile.name
-}
-```
-
----
-
-## 2. Compute (EC2) Module
-
-**Folder**: `modules/compute/` (or `ec2-hardened/`)
-
-In this module, we **call** the IAM module internally to create or retrieve the instance profile. Then we apply that instance profile to the launch template or EC2 instance.
-
-### `modules/compute/main.tf`
-
-```hcl
-////////////////////////////////////////////////////////////////////////
-// modules/compute/main.tf
-////////////////////////////////////////////////////////////////////////
-
-# 1. Call the IAM module to get or create the instance profile
-module "iam_profile" {
-  source = "../iam"
-
-  iam_role_name             = var.iam_role_name
-  iam_instance_profile_name = var.iam_instance_profile_name
-  tags                      = var.tags
-}
-
-# 2. Create a launch template that references the instance profile
-resource "aws_launch_template" "this" {
-  name          = var.launch_template_name
-  image_id      = var.ami_id
-  instance_type = var.instance_type
-  key_name      = var.key_name
-
-  iam_instance_profile {
-    name = module.iam_profile.instance_profile_name
+  supported_amis = {
+    "windows" = [
+      "ami-00cd4d5d7df22d982", 
+      "ami-01b14e65cd6ad74f9"
+    ],
+    "linux" = [
+      "ami-032c672ba2c1e9bbf", 
+      "ami-0b4624933067d393a"
+    ]
   }
 
-  block_device_mappings {
-    device_name = "/dev/xvda"
-    ebs {
-      volume_size           = var.volume_size
-      volume_type           = var.volume_type
-      delete_on_termination = true
-      encrypted             = true
-      kms_key_id            = var.ebs_kms_key_id
-    }
+  # If override_ami is provided, use it. Otherwise default to the first in the OS list.
+  final_ami = length(var.override_ami) > 0
+    ? var.override_ami
+    : (
+        var.is_windows
+          ? local.supported_amis["windows"][0]
+          : local.supported_amis["linux"][0]
+      )
+
+  final_device_name = var.is_windows
+    ? var.windows_volume_name
+    : var.linux_volume_name
+}
+
+variable "override_ami" {
+  type        = string
+  default     = "" 
+  description = "Optional user-supplied AMI. If empty, defaults to the first OS-appropriate AMI."
+}
+
+
+variable "stack_name" {
+  description = "Name of stack, change to suit your naming style"
+  type        = string
+  default     = "ec2_resiliency"
+}
+
+
+variable "vpc_id" {
+  description = "VPC ID for testing"
+  type        = string
+  default     = "vpc-072395b5d96856310"
+}
+
+variable "vpc_ec2_subnet1" {
+  description = "EC2 subnet 1 (AZ-a)"
+  type        = string
+  default     = "subnet-0d327ff0e2e84a195"
+}
+
+variable "vpc_ec2_subnet2" {
+  description = "EC2 subnet 2 (AZ-c)"
+  type        = string
+  default     = "subnet-0934df13dc88ccb2d"
+}
+
+variable "subnet_ids" {
+  description = "List of EC2 subnet IDs"
+  type        = list(string)
+  default     = ["subnet-0d327ff0e2e84a195", "subnet-0934df13dc88ccb2d"]
+}
+
+
+variable "ssm_key" {
+  description = "Name of parameter store which contains the json configuration of CWAgent."
+  type        = string
+  default     = "/ec2/resiliency/cloudwatch/agent"
+}
+
+variable "linux_image_id" {
+  description = "AMI ID"
+  type        = string
+  default     = "ami-0b4624933067d393a"
+  #default     = "ami-032c672ba2c1e9bbf"
+  #default     = "ami-0db575de70f37f380" for arrch64 arch type
+}
+
+variable "ec2_instance_type" {
+  description = "EC2 InstanceType"
+  type        = string
+  default     = "t2.micro"
+}
+
+
+variable "volume" {
+  description = "The volume name or device "
+  type        = string
+  default     = "/dev/xvda"
+}
+
+
+variable "ec2_instance_key_name" {
+  description = "EC2 SSH Key"
+  type        = string
+  default     = "res-wl-keypair"
+}
+
+variable "availability_zone" {
+  description = "The AZ for deployment"
+  type        = string
+  default     = "us-east-2a"
+}
+
+variable "region" {
+  description = "The AWS region for deployment"
+  type        = string
+  default     = "us-east-2"
+}
+
+variable "ad_directory_id" {
+  description = "Active Directory ID"
+  type        = string
+  default     = "NGL"
+}
+
+variable "ad_directory_name" {
+  description = "Active Directory Name"
+  type        = string
+  default     = "nglic.local"
+}
+
+variable "ad_dns_ip_address1" {
+  description = "Active Directory DNS 1"
+  type        = string
+  default     = "10.49.2.10"
+}
+
+variable "ad_dns_ip_address2" {
+  description = "Active Directory DNS 2"
+  type        = string
+  default     = "10.49.1.10"
+}
+variable "dns_ip_addresses" {
+  type        = list(string)
+  description = "id of aws directory service AD domain."
+  default = ["10.49.2.10", "10.49.1.10"]
+}
+
+
+variable "bucket_name" {
+  description = "S3 storage name"
+  type        = string
+  default     = "ngl-ec2-terraform-backend-workloaddev"
+}
+
+
+variable "email_address" {
+  description = "Enter Your Email Address"
+  type        = string
+  default     = "clyonga@nglic.com"
+}
+
+variable "path" {
+  description = "Provide path"
+  type        = string
+  default     = "/"
+}
+
+
+
+#EFS security group
+variable "inbound_tcp_port" {
+  default     = [2049]
+}
+
+variable "outbound_tcp_port" {
+  default     = [2049]
+}
+
+# variable "Environment" {
+#   default     = "dev"
+# }
+
+variable "team" {
+  default     = "EIS"
+}
+variable "ec2-association-name" {
+  default     = "ec2-instance-association"
+}
+variable "asg-association-name" {
+  default     = "asg-instance-association"
+}
+
+variable "trusted_ip_address" {
+  type        = string
+  description = "The CIDR block to allow RDP access will remove this to add my ip"
+  default     = "1.2.3.4/32"
+}
+
+
+variable "ebs_kms_key_arn" {
+  type        = string
+  description = "kms key for encyptyion"
+  default     = "arn:aws:kms:us-east-2:384352530920:key/48e020cc-9b1b-4cea-9306-e03d9e39e991"
+}
+
+variable "iam_instance_profile" {
+  type        = string
+  description = "iam instance profile for the ec2 instance"
+}
+
+variable "security_group_id" {
+  type        = string
+  description = "instance security group"
+}
+variable "fstype" {
+  description = "Choose fstype - ext4 or xfs"
+  type        = string
+  default     = "ext4"
+  validation {
+    condition     = contains(["ext4", "xfs", "btrfs"], var.fstype)
+    error_message = "You must specify ext4, xfs, or btrfs."
   }
-
-  # Additional config, e.g. metadata_options, tags, etc.
-  # ...
 }
 
-# 3. (Optional) Create an actual EC2 instance if you want to demonstrate usage
-resource "aws_instance" "this" {
-  ami           = var.ami_id
-  instance_type = var.instance_type
-  subnet_id     = var.subnet_id
 
-  launch_template {
-    id      = aws_launch_template.this.id
-    version = "$Latest"
-  }
-
-  tags = merge(
-    { Name = var.ec2_name_prefix },
-    var.tags
-  )
+variable "is_windows" {
+  type        = bool
+  description = "If set to true, launches a Windows EC2. Otherwise Linux."
+  default     = false
 }
-```
 
-### `modules/compute/variables.tf`
-
-```hcl
-variable "launch_template_name" {
+variable "windows_ami" {
   type        = string
-  default     = "my-launch-template"
-}
-
-variable "ami_id" {
-  type        = string
-  description = "The AMI to use for the EC2 instance."
-}
-
-variable "instance_type" {
-  type    = string
-  default = "t3.micro"
-}
-
-variable "key_name" {
-  type    = string
-  default = ""
-}
-
-variable "volume_size" {
-  type    = number
-  default = 8
-}
-
-variable "volume_type" {
-  type    = string
-  default = "gp3"
-}
-
-variable "ebs_kms_key_id" {
-  type    = string
-  default = ""
-}
-
-variable "subnet_id" {
-  type        = string
-  description = "Subnet for the instance."
+  description = "Optional override for the Windows AMI."
   default     = ""
 }
 
-variable "ec2_name_prefix" {
+variable "linux_ami" {
   type        = string
-  description = "Prefix for the EC2 instance name."
-  default     = "my-ec2"
+  description = "Optional override for the Linux AMI."
+  default     = ""
 }
 
-variable "tags" {
-  type    = map(string)
-  default = {}
-}
-
-# Variables passed to IAM module
-variable "iam_role_name" {
+variable "windows_volume_name" {
   type        = string
-  default     = "my-ec2-role"
+  description = "Block device name for Windows volumes."
+  default     = "/dev/sda1"
 }
 
-variable "iam_instance_profile_name" {
+variable "linux_volume_name" {
   type        = string
-  default     = "my-ec2-instance-profile"
+  description = "Block device name for Linux volumes."
+  default     = "/dev/xvda"
 }
-```
-
-### `modules/compute/outputs.tf`
-
-```hcl
-output "launch_template_id" {
-  description = "The ID of the launch template"
-  value       = aws_launch_template.this.id
-}
-
-output "ec2_id" {
-  description = "The ID of the EC2 instance (if created in this module)"
-  value       = aws_instance.this.id
-}
-```
-
----
-
-## 3. Using the `modules/compute` Module in Your Environment
-
-Finally, in your environment’s `main.tf` (for dev, QA, etc.):
-
-```hcl
-module "my_ec2" {
-  source = "../modules/compute"
-
-  launch_template_name = "dev-my-template"
-  ami_id               = "ami-0abcdef1234567890"
-  instance_type        = "t3.micro"
-  subnet_id            = "subnet-0123456789abcdef0"
-  key_name             = "my-ssh-key"
-
-  # Pass any IAM details:
-  iam_role_name             = "my-ec2-role"
-  iam_instance_profile_name = "my-ec2-profile"
-
-  tags = {
-    Owner       = "DevTeam"
-    Environment = "dev"
-  }
-}
-```
-
-**Terraform** will:
-
-1. Enter `modules/compute/`, see you reference `module.iam_profile` from `../iam`, create the IAM role & instance profile there,  
-2. Then create a launch template using that instance profile,  
-3. Optionally create a direct `aws_instance` using that launch template (if your code is structured that way),  
-4. Output the instance ID or launch template ID if needed.
-
----
-
-## Key Takeaways
-
-1. **One “parent” module** (`compute` or `ec2-hardened`) can **call** a **child** module (`iam/`) to create or retrieve an IAM instance profile.  
-2. Within the **child** module, output the necessary attribute (such as `instance_profile_name`) and use it in the parent’s resources.  
-3. In your top-level environment code, you reference **only** the “parent” module. Terraform automatically resolves the nested module calls.
-
-This pattern keeps your code modular:
-- **`modules/iam/`** is reusable for other roles or instance profiles, 
-- **`modules/compute/`** is your main “compute” logic, 
-- **`module "my_ec2"`** is where you pass environment‐specific variables (like AMI, subnets, tags).
