@@ -1,1 +1,110 @@
 https://github.com/rnava1986/EC2-Image-Builder/blob/main/module/maint.tf
+
+
+Yes. In a previous discussion, we pointed out that:
+
+> **If** you do:
+> ```python
+> MONTHSBACK = 2
+> start_date = (first_of_this_month - timedelta(days=MONTHSBACK * 30)).replace(day=1)
+> end_date   = first_of_this_month
+> ```
+> you’re effectively approximating “two months back” by subtracting **30** days per month – but real months might have 28, 29, 30, or 31 days. Thus, you **could** end up with slight misalignment from actual monthly boundaries if the starting month was shorter or longer than 30 days.
+
+Below is a **short recap** of that recommendation and **how** you might handle truly exact month boundaries.
+
+---
+
+## 1) The Issue with `MONTHSBACK * 30`
+
+Let’s say `MONTHSBACK = 2` and you run the function on April 15. The code might do:
+
+```python
+today = datetime.now()           # e.g. 2025-04-15
+first_of_this_month = today.replace(day=1)   # 2025-04-01
+
+# Subtract (MONTHSBACK * 30) = 60 days:
+start_date = (first_of_this_month - timedelta(days=60)).replace(day=1)
+# if first_of_this_month was 2025-04-01, minus 60 days => approx early Feb,
+# then we do .replace(day=1) => 2025-02-01
+
+end_date = first_of_this_month   # 2025-04-01
+```
+
+- If the prior months had 31 days (say March had 31, February had 28 or 29), you might be off by a few days from exact monthly boundaries. You might land on `2025-02-01` to `2025-04-01`, which is basically 2 months. But if you do this in a month with 31 days, the math is an approximation.
+
+---
+
+## 2) Exact Month Boundaries Using Offsets
+
+One fix is to do **true** monthly offsets. For example:
+
+```python
+import datetime
+
+MONTHSBACK = 2
+today = datetime.datetime.now()
+
+# e.g. if it's currently 2025-04-15, first_of_this_month => 2025-04-01
+first_of_this_month = today.replace(day=1)
+
+# We want to go exactly 2 months earlier:
+# e.g. if first_of_this_month=2025-04-01,
+# then the start_date => 2025-02-01
+# We can do a small helper function or just do “month math” with dateutil.
+
+import dateutil.relativedelta
+
+start_date_dt = first_of_this_month - dateutil.relativedelta.relativedelta(months=MONTHSBACK)
+end_date_dt   = first_of_this_month
+
+# Then we format them as YYYY-MM-DD
+MONTHLY_START_DATE = start_date_dt.strftime("%Y-%m-%d")
+MONTHLY_END_DATE   = end_date_dt.strftime("%Y-%m-%d")
+
+print(MONTHLY_START_DATE, "to", MONTHLY_END_DATE)
+# e.g. "2025-02-01 to 2025-04-01"
+```
+
+### Explanation
+
+- We use **`relativedelta(months=MONTHSBACK)`** from the [**python-dateutil**](https://pypi.org/project/python-dateutil/) library, which is typically available in AWS Lambda (or you can layer it).  
+- Subtracting `months=2` from `2025-04-01` yields `2025-02-01`, ignoring the day-of-month differences in each month.  
+- That’s exact monthly boundaries, so you’re guaranteed the result is a “clean” range for Cost Explorer.
+
+---
+
+## 3) If You Don’t Want dateutil
+
+You can do a simpler pure-Python approach: If `first_of_this_month = 2025-04-01`, just subtract 2 from the month and fix up the year if the month goes below 1. For example:
+
+```python
+def get_month_boundary(MONTHSBACK):
+    # current month boundary
+    today = datetime.datetime.now()
+    first_of_this_month = today.replace(day=1)
+
+    y = first_of_this_month.year
+    m = first_of_this_month.month - MONTHSBACK
+    # fix negative months
+    while m < 1:
+        m += 12
+        y -= 1
+
+    start_date_dt = first_of_this_month.replace(year=y, month=m)
+
+    return (
+      start_date_dt.strftime("%Y-%m-%d"),
+      first_of_this_month.strftime("%Y-%m-%d")
+    )
+```
+
+**Either** approach yields an exact “N months ago” boundary, which is typically what you want for a monthly cost range.
+
+---
+
+## 4) Final Summary
+
+- **The recommendation** was to use an **exact** monthly offset method (like dateutil) instead of `(MONTHSBACK*30)` to avoid day misalignments.  
+- If your original code is fine with approximate, that’s okay. But if you want truly “the last 2 calendar months,” do the monthly math approach.  
+- This ensures your start and end boundaries line up with how Cost Explorer partitions monthly usage.
