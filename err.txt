@@ -1,7 +1,9 @@
-
-lyonga@MDL1872 MINGW64 /c/users/lyonga/terraform-projects/cosmos-ec2 (feature/main)
-$ git commit -m 'fixed typo;
->
->
-> :
->
+sh-4.2$ sudo bash /var/lib/cloud/instance/user-data.txt
+/var/lib/cloud/instance/user-data.txt: line 1: Content-Type:: command not found
+/var/lib/cloud/instance/user-data.txt: line 2: MIME-Version:: command not found
+/var/lib/cloud/instance/user-data.txt: line 4: --===BOUNDARY===: command not found
+/var/lib/cloud/instance/user-data.txt: line 5: Content-Type:: command not found
+/var/lib/cloud/instance/user-data.txt: line 8: preserve_hostname:: command not found
+/var/lib/cloud/instance/user-data.txt: line 10: --===BOUNDARY===: command not found
+/var/lib/cloud/instance/user-data.txt: line 11: Content-Type:: command not found
+=== Setting hostname to uppercase ===
